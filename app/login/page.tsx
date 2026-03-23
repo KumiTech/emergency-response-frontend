@@ -1,48 +1,56 @@
 "use client";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { Shield, AlertTriangle, Eye, EyeOff, Check } from "lucide-react";
+import { useTheme } from "@/lib/theme-context";
+import {
+  Shield,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Check,
+  Sun,
+  Moon,
+} from "lucide-react";
 
 const DEMO_CREDENTIALS = [
-  {
-    label: "System Admin",
-    email: "admin@emergency.gh",
-    role: "Dispatch Operator",
-  },
-  {
-    label: "Hospital Admin",
-    email: "korlebu@emergency.gh",
-    role: "Hospital Admin",
-  },
-  {
-    label: "Police Admin",
-    email: "police@emergency.gh",
-    role: "Police Station Admin",
-  },
-  {
-    label: "Fire Admin",
-    email: "fire@emergency.gh",
-    role: "Fire Service Admin",
-  },
+  { label: "System Admin", role: "system_admin" },
+  { label: "Hospital Admin", role: "hospital_admin" },
+  { label: "Police Admin", role: "police_admin" },
+  { label: "Fire Admin", role: "fire_admin" },
 ];
+
+const ROLE_EMAILS: Record<string, string> = {
+  system_admin: "admin@emergency.gh",
+  hospital_admin: "korlebu@emergency.gh",
+  police_admin: "police@emergency.gh",
+  fire_admin: "fire@emergency.gh",
+};
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedDemo, setSelectedDemo] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      const loginEmail =
+        email || (selectedRole ? ROLE_EMAILS[selectedRole] : "");
+      if (!loginEmail) {
+        setError("Please select an account type or enter your email.");
+        setLoading(false);
+        return;
+      }
+      await login(loginEmail, password);
     } catch {
-      setError("Invalid email or password.");
+      setError("Invalid credentials.");
     } finally {
       setLoading(false);
     }
@@ -65,7 +73,7 @@ export default function LoginPage() {
           display: flex;
           flex-direction: column;
           justify-content: flex-start;
-          padding: 32px 52px 32px 52px;
+          padding: 32px 52px;
           position: relative;
           z-index: 2;
           border-right: 1px solid var(--border);
@@ -97,10 +105,18 @@ export default function LoginPage() {
           0%,100% { box-shadow: 0 0 0 0 rgba(226,75,74,0.3), 0 0 30px rgba(226,75,74,0.1); }
           50%      { box-shadow: 0 0 0 24px rgba(226,75,74,0.0), 0 0 60px rgba(226,75,74,0.15); }
         }
+          @keyframes center-pulse-purple {
+  0%,100% { box-shadow: 0 0 0 0 rgba(168,85,247,0.4), 0 0 30px rgba(168,85,247,0.1); }
+  50%      { box-shadow: 0 0 0 24px rgba(168,85,247,0.0), 0 0 60px rgba(168,85,247,0.2); }
+}
         @keyframes icon-pulse {
           0%,100% { box-shadow: 0 0 0 0 rgba(226,75,74,0.4); }
-          50%      { box-shadow: 0 0 0 24px rgba(226,75,74,0.0); }
+          50%      { box-shadow: 0 0 0 8px rgba(226,75,74,0.0); }
         }
+          @keyframes icon-pulse-purple {
+  0%,100% { box-shadow: 0 0 0 0 rgba(168,85,247,0.5); }
+  50%      { box-shadow: 0 0 0 10px rgba(168,85,247,0.0); }
+}
         @keyframes float-in {
           from { opacity: 0; transform: translateY(20px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -268,6 +284,28 @@ export default function LoginPage() {
           opacity: 0.7;
         }
 
+        .theme-toggle {
+          position: fixed;
+          top: 16px;
+          right: 16px;
+          z-index: 100;
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 8px;
+          cursor: pointer;
+          color: var(--muted);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+        }
+
+        .theme-toggle:hover {
+          border-color: var(--border2);
+          color: var(--text);
+        }
+
         @media (max-width: 768px) {
           .login-root { grid-template-columns: 1fr; }
           .login-right { display: none; }
@@ -276,6 +314,18 @@ export default function LoginPage() {
       `}</style>
 
       <div className="login-root">
+        {/* Theme toggle — fixed top right */}
+        <button
+          onClick={toggleTheme}
+          className="theme-toggle"
+          aria-label="Toggle theme"
+          title={
+            theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+          }
+        >
+          {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+
         {/* ── LEFT — Form ── */}
         <div className="login-left">
           <div style={{ width: "100%", maxWidth: "400px", margin: "0 auto" }}>
@@ -283,7 +333,7 @@ export default function LoginPage() {
               style={{
                 fontSize: "22px",
                 fontWeight: "700",
-                color: "var(--text)",
+                color: theme === "dark" ? "var(--text)" : "#1e1440",
                 marginBottom: "4px",
               }}
             >
@@ -292,7 +342,7 @@ export default function LoginPage() {
             <p
               style={{
                 fontSize: "13px",
-                color: "var(--muted)",
+                color: theme === "dark" ? "var(--muted)" : "#6b7090",
                 marginBottom: "20px",
               }}
             >
@@ -302,8 +352,9 @@ export default function LoginPage() {
             {/* Demo accounts */}
             <div
               style={{
-                background: "var(--bg2)",
-                border: "1px solid var(--border)",
+                background:
+                  theme === "dark" ? "var(--bg2)" : "rgba(124,58,237,0.06)",
+                border: `1px solid ${theme === "dark" ? "var(--border)" : "rgba(124,58,237,0.18)"}`,
                 borderRadius: "12px",
                 padding: "12px",
                 marginBottom: "16px",
@@ -312,30 +363,45 @@ export default function LoginPage() {
               <p
                 style={{
                   fontSize: "10px",
-                  color: "var(--muted)",
+                  color:
+                    theme === "dark" ? "var(--muted)" : "rgba(124,58,237,0.7)",
                   marginBottom: "8px",
                   letterSpacing: "0.06em",
                 }}
               >
-                SELECT ACCOUNT — then enter password below
+                SELECT ACCOUNT TYPE — then enter your credentials below
               </p>
               <div
                 style={{ display: "flex", flexDirection: "column", gap: "4px" }}
               >
                 {DEMO_CREDENTIALS.map((c) => {
-                  const isSelected = selectedDemo === c.email;
+                  const isSelected = selectedRole === c.role;
                   return (
                     <button
-                      key={c.email}
+                      key={c.role}
                       className="demo-btn"
                       onClick={() => {
-                        setSelectedDemo(c.email);
-                        setEmail(c.email);
+                        setSelectedRole(c.role);
+                        setEmail("");
                         setPassword("");
                       }}
                       style={{
-                        background: isSelected ? "var(--text)" : "var(--bg3)",
-                        border: `1px solid ${isSelected ? "var(--text)" : "var(--border)"}`,
+                        background: isSelected
+                          ? theme === "dark"
+                            ? "var(--text)"
+                            : "#7c3aed"
+                          : theme === "dark"
+                            ? "var(--bg3)"
+                            : "rgba(124,58,237,0.06)",
+                        border: `1px solid ${
+                          isSelected
+                            ? theme === "dark"
+                              ? "var(--text)"
+                              : "#7c3aed"
+                            : theme === "dark"
+                              ? "var(--border)"
+                              : "rgba(124,58,237,0.18)"
+                        }`,
                       }}
                     >
                       <div
@@ -351,14 +417,18 @@ export default function LoginPage() {
                               width: "15px",
                               height: "15px",
                               borderRadius: "50%",
-                              background: "var(--bg)",
+                              background:
+                                theme === "dark" ? "var(--bg)" : "#ffffff",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               flexShrink: 0,
                             }}
                           >
-                            <Check size={9} color="var(--text)" />
+                            <Check
+                              size={9}
+                              color={theme === "dark" ? "var(--bg)" : "#7c3aed"}
+                            />
                           </div>
                         ) : (
                           <div
@@ -366,7 +436,7 @@ export default function LoginPage() {
                               width: "15px",
                               height: "15px",
                               borderRadius: "50%",
-                              border: "1px solid var(--border2)",
+                              border: `1px solid ${theme === "dark" ? "var(--border2)" : "rgba(124,58,237,0.3)"}`,
                               flexShrink: 0,
                             }}
                           />
@@ -374,7 +444,13 @@ export default function LoginPage() {
                         <span
                           style={{
                             fontSize: "12px",
-                            color: isSelected ? "var(--bg)" : "var(--text)",
+                            color: isSelected
+                              ? theme === "dark"
+                                ? "var(--bg)"
+                                : "#ffffff"
+                              : theme === "dark"
+                                ? "var(--text)"
+                                : "#1e1440",
                             fontWeight: isSelected ? "600" : "400",
                           }}
                         >
@@ -385,12 +461,15 @@ export default function LoginPage() {
                         style={{
                           fontSize: "10px",
                           color: isSelected
-                            ? "rgba(12,14,20,0.6)"
-                            : "var(--muted)",
-                          fontFamily: "var(--font-mono)",
+                            ? theme === "dark"
+                              ? "rgba(12,14,20,0.6)"
+                              : "rgba(255,255,255,0.7)"
+                            : theme === "dark"
+                              ? "var(--muted)"
+                              : "rgba(124,58,237,0.6)",
                         }}
                       >
-                        {c.email}
+                        {isSelected ? "✓ Selected" : "Select →"}
                       </span>
                     </button>
                   );
@@ -405,7 +484,7 @@ export default function LoginPage() {
                   style={{
                     display: "block",
                     fontSize: "11px",
-                    color: "var(--muted2)",
+                    color: theme === "dark" ? "var(--muted2)" : "#7c3aed",
                     marginBottom: "5px",
                     letterSpacing: "0.05em",
                   }}
@@ -415,13 +494,21 @@ export default function LoginPage() {
                 <input
                   className="login-input"
                   type="email"
-                  required
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    setSelectedDemo(null);
+                    setSelectedRole(null);
                   }}
-                  placeholder="Select an account above or type manually"
+                  placeholder={
+                    selectedRole
+                      ? "Press Sign in or type your email"
+                      : "name@yourdomain.com"
+                  }
+                  style={{
+                    background: theme === "dark" ? "var(--bg2)" : "#ffffff",
+                    border: `1px solid ${theme === "dark" ? "var(--border)" : "rgba(124,58,237,0.2)"}`,
+                    color: theme === "dark" ? "var(--text)" : "#1e1440",
+                  }}
                 />
               </div>
 
@@ -430,7 +517,7 @@ export default function LoginPage() {
                   style={{
                     display: "block",
                     fontSize: "11px",
-                    color: "var(--muted2)",
+                    color: theme === "dark" ? "var(--muted2)" : "#7c3aed",
                     marginBottom: "5px",
                     letterSpacing: "0.05em",
                   }}
@@ -445,7 +532,12 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    style={{ paddingRight: "40px" }}
+                    style={{
+                      paddingRight: "40px",
+                      background: theme === "dark" ? "var(--bg2)" : "#ffffff",
+                      border: `1px solid ${theme === "dark" ? "var(--border)" : "rgba(124,58,237,0.2)"}`,
+                      color: theme === "dark" ? "var(--text)" : "#1e1440",
+                    }}
                   />
                   <button
                     type="button"
@@ -488,10 +580,35 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={loading} className="submit-btn">
+              <button
+                type="submit"
+                disabled={loading}
+                className="submit-btn"
+                style={{
+                  background: loading
+                    ? "var(--bg4)"
+                    : theme === "dark"
+                      ? "var(--blue)"
+                      : "#7c3aed",
+                }}
+              >
                 {loading ? "Signing in…" : "Sign in →"}
               </button>
             </form>
+
+            {selectedRole && (
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: theme === "dark" ? "var(--muted)" : "#7c3aed",
+                  textAlign: "center",
+                  marginTop: "12px",
+                }}
+              >
+                Account type selected — enter your email and password to
+                continue
+              </p>
+            )}
           </div>
         </div>
 
@@ -504,12 +621,14 @@ export default function LoginPage() {
               inset: 0,
               pointerEvents: "none",
               backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)",
+                theme === "dark"
+                  ? "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)"
+                  : "linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)",
               backgroundSize: "48px 48px",
             }}
           />
 
-          {/* Glow effects */}
+          {/* Glow top right */}
           <div
             style={{
               position: "absolute",
@@ -519,10 +638,14 @@ export default function LoginPage() {
               height: "400px",
               borderRadius: "50%",
               background:
-                "radial-gradient(circle, rgba(226,75,74,0.08) 0%, transparent 65%)",
+                theme === "dark"
+                  ? "radial-gradient(circle, rgba(226,75,74,0.08) 0%, transparent 65%)"
+                  : "radial-gradient(circle, rgba(214,59,58,0.12) 0%, transparent 65%)",
               pointerEvents: "none",
             }}
           />
+
+          {/* Glow bottom left */}
           <div
             style={{
               position: "absolute",
@@ -532,12 +655,13 @@ export default function LoginPage() {
               height: "350px",
               borderRadius: "50%",
               background:
-                "radial-gradient(circle, rgba(55,138,221,0.07) 0%, transparent 65%)",
+                theme === "dark"
+                  ? "radial-gradient(circle, rgba(55,138,221,0.07) 0%, transparent 65%)"
+                  : "radial-gradient(circle, rgba(37,103,184,0.1) 0%, transparent 65%)",
               pointerEvents: "none",
             }}
           />
-
-          {/* ── ORBITAL ANIMATION (background) ── */}
+          {/* ── ORBITAL ANIMATION ── */}
           <div className="orbit-wrap">
             <div
               className="orbit-ring"
@@ -558,8 +682,11 @@ export default function LoginPage() {
                 width: "72px",
                 height: "72px",
                 borderRadius: "50%",
-                background: "rgba(226,75,74,0.12)",
-                border: "2px solid rgba(226,75,74,0.3)",
+                background:
+                  theme === "dark"
+                    ? "rgba(226,75,74,0.12)"
+                    : "rgba(168,85,247,0.15)",
+                border: `2px solid ${theme === "dark" ? "rgba(226,75,74,0.3)" : "rgba(168,85,247,0.4)"}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -567,10 +694,12 @@ export default function LoginPage() {
                 animation: "center-pulse 3s ease-in-out infinite",
               }}
             >
-              <Shield size={30} color="var(--red)" />
+              <Shield
+                size={30}
+                color={theme === "dark" ? "var(--red)" : "#a855f7"}
+              />
             </div>
 
-            {/* Inner orbit CW 22s */}
             {[
               {
                 icon: "🚑",
@@ -619,7 +748,6 @@ export default function LoginPage() {
               </div>
             ))}
 
-            {/* Middle orbit CCW 32s */}
             {[
               {
                 icon: "📡",
@@ -661,7 +789,6 @@ export default function LoginPage() {
               </div>
             ))}
 
-            {/* Outer orbit CW 46s */}
             {[
               {
                 icon: "🔔",
@@ -718,9 +845,8 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* ── HERO CONTENT (foreground) ── */}
+          {/* ── HERO CONTENT ── */}
           <div className="hero-content">
-            {/* Top brand — animated icon */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <div
                 style={{
@@ -732,7 +858,10 @@ export default function LoginPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  animation: "icon-pulse 3s ease-in-out infinite",
+                  animation:
+                    theme === "dark"
+                      ? "center-pulse 3s ease-in-out infinite"
+                      : "center-pulse-purple 3s ease-in-out infinite",
                 }}
               >
                 <Shield size={16} color="var(--red)" />
@@ -753,7 +882,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Center: Hero glass card */}
             <div className="hero-glass">
               <div className="hero-badge">
                 <div
@@ -782,7 +910,6 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Bottom: stats only — no footer text */}
             <div className="hero-stats">
               {[
                 { val: "4", label: "Services" },

@@ -302,3 +302,135 @@ body {
   flex: 1;
   overflow: hidden;
 }
+
+/* ── Light mode ── */
+html[data-theme="light"] {
+  --bg: #f4f5f7;
+  --bg2: #ffffff;
+  --bg3: #f0f1f4;
+  --bg4: #e4e5ea;
+  --border: rgba(0, 0, 0, 0.08);
+  --border2: rgba(0, 0, 0, 0.14);
+  --text: #0c0e14;
+  --muted: #6b7090;
+  --muted2: #444860;
+  --red: #d63b3a;
+  --red-bg: rgba(214, 59, 58, 0.08);
+  --red-border: rgba(214, 59, 58, 0.2);
+  --amber: #c97f10;
+  --amber-bg: rgba(201, 127, 16, 0.08);
+  --amber-border: rgba(201, 127, 16, 0.2);
+  --green: #167a5a;
+  --green-bg: rgba(22, 122, 90, 0.08);
+  --green-border: rgba(22, 122, 90, 0.2);
+  --blue: #2567b8;
+  --blue-bg: rgba(37, 103, 184, 0.08);
+  --blue-border: rgba(37, 103, 184, 0.2);
+  --font-display: "Syne", sans-serif;
+  --font-mono: "DM Mono", monospace;
+}
+
+html[data-theme="light"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Light mode hero overrides ── */
+html[data-theme="light"] .hero-glass {
+  background: rgba(30, 20, 60, 0.82);
+  border: 1px solid rgba(80, 40, 140, 0.3);
+  box-shadow: 0 8px 40px rgba(30, 20, 60, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html[data-theme="light"] .hero-title {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .hero-title span {
+  color: #a855f7;
+}
+
+html[data-theme="light"] .hero-subtitle {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+html[data-theme="light"] .hero-badge {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #a855f7;
+}
+
+html[data-theme="light"] .hero-stat {
+  background: rgba(30, 20, 60, 0.75);
+  border: 1px solid rgba(80, 40, 140, 0.25);
+  box-shadow: 0 4px 16px rgba(30, 20, 60, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+html[data-theme="light"] .hero-stat-val {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .hero-stat-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+html[data-theme="light"] .orbit-ring {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="light"] .login-right {
+  background: #e8eaf0;
+}
+
+html[data-theme="light"] .submit-btn {
+  background: #7c3aed;
+}
+
+html[data-theme="light"] .submit-btn:hover {
+  background: #6d28d9;
+}
+
+/* ── Light mode left panel fixes ── */
+html[data-theme="light"] .login-left {
+  background: #f0eeff;
+  border-right: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+html[data-theme="light"] .login-left h2 {
+  color: #1e1440;
+}
+
+html[data-theme="light"] .login-left p {
+  color: #6b7090;
+}
+
+/* Demo accounts box */
+html[data-theme="light"] .login-left > div > div:first-of-type {
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.18);
+}
+
+/* Input fields */
+html[data-theme="light"] .login-input {
+  background: #ffffff;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  color: #1e1440;
+}
+
+html[data-theme="light"] .login-input:focus {
+  border-color: #7c3aed;
+}
+
+html[data-theme="light"] .login-input::placeholder {
+  color: #9ca3c0;
+}
+
+/* Submit button disabled/loading state */
+html[data-theme="light"] .submit-btn:disabled {
+  background: rgba(124, 58, 237, 0.3) !important;
+  color: #7c3aed;
+}

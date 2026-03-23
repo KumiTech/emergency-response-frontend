@@ -2,8 +2,18 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import { ROLE_ROUTES } from "@/lib/auth-context";
-import { Shield, LogOut, Bell, Activity, BarChart2, Users } from "lucide-react";
+import {
+  Shield,
+  LogOut,
+  Bell,
+  Activity,
+  BarChart2,
+  Users,
+  Sun,
+  Moon,
+} from "lucide-react";
 import Link from "next/link";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -36,6 +46,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -104,7 +115,6 @@ export default function DashboardLayout({
         flexDirection: "column",
       }}
     >
-      {/* Topbar */}
       <header
         style={{
           height: "48px",
@@ -122,7 +132,6 @@ export default function DashboardLayout({
       >
         {/* Left */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          {/* Brand */}
           <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
             <div
               style={{
@@ -164,7 +173,6 @@ export default function DashboardLayout({
             </span>
           </div>
 
-          {/* Nav */}
           <nav style={{ display: "flex", gap: "2px" }}>
             <Link
               href={homeRoute}
@@ -201,7 +209,30 @@ export default function DashboardLayout({
         </div>
 
         {/* Right */}
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            style={{
+              background: "none",
+              border: "1px solid var(--border)",
+              borderRadius: "6px",
+              cursor: "pointer",
+              color: "var(--muted)",
+              padding: "5px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.15s",
+            }}
+          >
+            {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+
           <button
             aria-label="Notifications"
             title="Notifications"
