@@ -1,133 +1,466 @@
-// ─────────────────────────────────────────────
-//  API SERVICE LAYER
-//  All functions return mock data now.
-//  To connect real backend: replace the mock
-//  return with fetch() to your microservice URL.
-//
-//  Example swap:
-//    BEFORE: return MOCK_INCIDENTS
-//    AFTER:  return await fetch(`${API_BASE}/incidents`).then(r => r.json())
-// ─────────────────────────────────────────────
+import axios from "axios";
 
-import {
-  MOCK_USERS, MOCK_INCIDENTS, MOCK_VEHICLES,
-  MOCK_HOSPITAL, MOCK_POLICE_STATION, MOCK_FIRE_STATION,
-  MOCK_ANALYTICS,
-  type Role, type Incident,
-} from './mock-data'
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://emergency-api-gateway.onrender.com";
 
-// Base URLs — set via environment variables when backend is ready
-export const API_URLS = {
-  auth:      process.env.NEXT_PUBLIC_AUTH_API      || 'http://localhost:4001',
-  incidents: process.env.NEXT_PUBLIC_INCIDENTS_API || 'http://localhost:4002',
-  dispatch:  process.env.NEXT_PUBLIC_DISPATCH_API  || 'http://localhost:4003',
-  analytics: process.env.NEXT_PUBLIC_ANALYTICS_API || 'http://localhost:4004',
+// ── Types ─────────────────────────────────────
+export type Role =
+  | "system_admin"
+  | "hospital_admin"
+  | "police_admin"
+  | "fire_admin"
+  | "ambulance_driver";
+
+export interface AuthUser {
+  user_id: string;
+  name: string;
+  email: string;
+  role: Role;
 }
 
-// ── Auth Service ─────────────────────────────
-export async function loginUser(email: string, password: string) {
-  // REAL: POST ${API_URLS.auth}/auth/login
-  await new Promise(r => setTimeout(r, 600)) // simulate latency
-  const user = MOCK_USERS.find(u => u.email === email && u.password === password)
-  if (!user) throw new Error('Invalid credentials')
-  return {
-    token: `mock-jwt-${user.role}-${Date.now()}`,
-    user:  { name: user.name, email: user.email, role: user.role },
+export interface Incident {
+  incident_id: string;
+  citizen_name: string;
+  incident_type: string;
+  latitude: number;
+  longitude: number;
+  notes: string;
+  created_by: string;
+  assigned_unit_id: string;
+  assigned_unit_type: string;
+  hospital_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  responder_name?: string;
+  hospital_name?: string;
+}
+
+export interface Responder {
+  responder_id: string;
+  name: string;
+  type: string;
+  latitude: number;
+  longitude: number;
+  is_available: boolean;
+  hospital_id: string | null;
+  contact_phone: string;
+  region: string;
+  created_at: string;
+}
+
+export interface Hospital {
+  hospital_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  total_beds: number;
+  available_beds: number;
+  created_at: string;
+}
+
+export interface Vehicle {
+  vehicle_id: string;
+  plate_number: string;
+  vehicle_type: string;
+  station_id: string | null;
+  driver_id: string | null;
+  status: string;
+  current_lat: number | null;
+  current_lng: number | null;
+  last_seen: string | null;
+  created_at: string;
+}
+
+export interface Dispatch {
+  dispatch_id: string;
+  vehicle_id: string;
+  incident_id: string;
+  dispatched_at: string;
+  arrived_at: string | null;
+  resolved_at: string | null;
+  status: string;
+  response_time_sec: number | null;
+  plate_number?: string;
+  vehicle_type?: string;
+}
+
+export interface AnalyticsSummary {
+  total: string;
+  created: string;
+  dispatched: string;
+  in_progress: string;
+  resolved: string;
+  medical: string;
+  fire: string;
+  crime: string;
+  accident: string;
+  other: string;
+}
+
+export interface ResponseTimeMetric {
+  incident_type: string;
+  region: string;
+  total_incidents: string;
+  avg_duration_sec: number;
+  min_duration_sec: number;
+  max_duration_sec: number;
+}
+
+export interface RegionMetric {
+  region: string;
+  incident_type: string;
+  total: string;
+  resolved: string;
+  active: string;
+}
+
+export interface ResourceUtilization {
+  responder_id: string;
+  responder_name: string;
+  responder_type: string;
+  total_deployments: string;
+  last_active: string;
+}
+
+export interface HospitalCapacity {
+  hospital_id: string;
+  hospital_name: string;
+  avg_available_beds: number;
+  min_available_beds: number;
+  total_beds: number;
+  total_records: string;
+  last_updated: string;
+}
+
+// ── Axios instance ────────────────────────────
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: { "Content-Type": "application/json" },
+});
+
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("erpToken");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response.data,
+  (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+      const message =
+        error.response?.data?.message || error.message || "Request failed";
+      throw new Error(message);
+    }
+    throw new Error("An unexpected error occurred");
+  },
+);
+
+// ── Helper type ───────────────────────────────
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
 }
 
-export async function getProfile(token: string) {
-  // REAL: GET ${API_URLS.auth}/auth/profile  (Authorization: Bearer token)
-  const role = token.split('-')[2] as Role
-  const user = MOCK_USERS.find(u => u.role === role)
-  return user ? { name: user.name, email: user.email, role: user.role } : null
+// ── Auth ──────────────────────────────────────
+export async function loginUser(email: string, password: string) {
+  const data = await api.post<
+    never,
+    ApiResponse<{ accessToken: string; refreshToken: string; user: AuthUser }>
+  >("/api/auth/login", { email, password });
+  return {
+    token: data.data.accessToken,
+    refreshToken: data.data.refreshToken,
+    user: data.data.user,
+  };
 }
 
-// ── Incident Service ──────────────────────────
-export async function getIncidents() {
-  // REAL: GET ${API_URLS.incidents}/incidents/open
-  return MOCK_INCIDENTS
+export async function getProfile() {
+  const data = await api.get<never, ApiResponse<AuthUser>>("/api/auth/profile");
+  return data.data;
+}
+
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string,
+  role: string,
+) {
+  const data = await api.post<never, ApiResponse<AuthUser>>(
+    "/api/auth/register",
+    { name, email, password, role },
+  );
+  return data.data;
+}
+
+// ── Incidents ─────────────────────────────────
+export async function getIncidents(filters?: {
+  status?: string;
+  incident_type?: string;
+}) {
+  const data = await api.get<never, ApiResponse<Incident[]>>("/api/incidents", {
+    params: filters,
+  });
+  return data.data;
+}
+
+export async function getOpenIncidents() {
+  const data = await api.get<never, ApiResponse<Incident[]>>(
+    "/api/incidents/open",
+  );
+  return data.data;
 }
 
 export async function getIncident(id: string) {
-  // REAL: GET ${API_URLS.incidents}/incidents/:id
-  return MOCK_INCIDENTS.find(i => i.id === id) || null
+  const data = await api.get<never, ApiResponse<Incident>>(
+    `/api/incidents/${id}`,
+  );
+  return data.data;
 }
 
-export async function createIncident(data: Omit<Incident, 'id' | 'status' | 'timestamp' | 'assignedUnit'>) {
-  // REAL: POST ${API_URLS.incidents}/incidents
-  return {
-    ...data,
-    id:          `INC-${String(Date.now()).slice(-4)}`,
-    assignedUnit: null,
-    status:      'created' as const,
-    timestamp:   new Date().toISOString(),
-  }
+export async function createIncident(payload: {
+  citizen_name: string;
+  incident_type: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+}) {
+  const data = await api.post<never, ApiResponse<{ incident: Incident }>>(
+    "/api/incidents",
+    payload,
+  );
+  return data.data;
 }
 
-export async function updateIncidentStatus(id: string, status: Incident['status']) {
-  // REAL: PUT ${API_URLS.incidents}/incidents/:id/status
-  return { id, status }
+export async function updateIncidentStatus(id: string, status: string) {
+  const data = await api.put<never, ApiResponse<Incident>>(
+    `/api/incidents/${id}/status`,
+    { status },
+  );
+  return data.data;
 }
 
-// ── Dispatch Tracking Service ─────────────────
+export async function assignResponder(
+  id: string,
+  responder_id: string,
+  hospital_id?: string,
+) {
+  const data = await api.put<never, ApiResponse<Incident>>(
+    `/api/incidents/${id}/assign`,
+    { responder_id, hospital_id },
+  );
+  return data.data;
+}
+
+// ── Responders ────────────────────────────────
+export async function getResponders() {
+  const data = await api.get<never, ApiResponse<Responder[]>>(
+    "/api/responders",
+  );
+  return data.data;
+}
+
+export async function registerResponder(payload: {
+  name: string;
+  type: string;
+  latitude: number;
+  longitude: number;
+  hospital_id?: string;
+  contact_phone?: string;
+  region?: string;
+}) {
+  const data = await api.post<never, ApiResponse<Responder>>(
+    "/api/responders",
+    payload,
+  );
+  return data.data;
+}
+
+export async function updateResponder(id: string, payload: Partial<Responder>) {
+  const data = await api.put<never, ApiResponse<Responder>>(
+    `/api/responders/${id}`,
+    payload,
+  );
+  return data.data;
+}
+
+// ── Hospitals ─────────────────────────────────
+export async function getHospitals() {
+  const data = await api.get<never, ApiResponse<Hospital[]>>("/api/hospitals");
+  return data.data;
+}
+
+export async function createHospital(payload: {
+  name: string;
+  latitude: number;
+  longitude: number;
+  total_beds: number;
+  available_beds: number;
+}) {
+  const data = await api.post<never, ApiResponse<Hospital>>(
+    "/api/hospitals",
+    payload,
+  );
+  return data.data;
+}
+
+export async function updateHospitalCapacity(
+  id: string,
+  total_beds: number,
+  available_beds: number,
+) {
+  const data = await api.put<never, ApiResponse<Hospital>>(
+    `/api/hospitals/${id}/capacity`,
+    { total_beds, available_beds },
+  );
+  return data.data;
+}
+
+// ── Vehicles ──────────────────────────────────
 export async function getVehicles() {
-  // REAL: GET ${API_URLS.dispatch}/vehicles
-  return MOCK_VEHICLES
+  const data = await api.get<never, ApiResponse<Vehicle[]>>("/api/vehicles");
+  return data.data;
 }
 
-export async function getVehicleLocation(vehicleId: string) {
-  // REAL: GET ${API_URLS.dispatch}/vehicles/:id/location
-  return MOCK_VEHICLES.find(v => v.id === vehicleId) || null
+export async function getVehicle(id: string) {
+  const data = await api.get<never, ApiResponse<Vehicle>>(
+    `/api/vehicles/${id}`,
+  );
+  return data.data;
 }
 
-// WS connection helper — swap URL when backend ready
-export function createDispatchSocket(onMessage: (data: unknown) => void) {
-  // REAL: return new WebSocket(`${API_URLS.dispatch.replace('http','ws')}/ws`)
-  // For now returns a mock that never fires (static map)
-  return {
-    close: () => {},
-    onmessage: null,
-  }
+export async function registerVehicle(payload: {
+  plate_number: string;
+  vehicle_type: string;
+  station_id?: string;
+  driver_id?: string;
+}) {
+  const data = await api.post<never, ApiResponse<Vehicle>>(
+    "/api/vehicles/register",
+    payload,
+  );
+  return data.data;
 }
 
-// ── Hospital Service ──────────────────────────
-export async function getHospital() {
-  // REAL: GET ${API_URLS.dispatch}/hospital  (or dedicated hospital service)
-  return MOCK_HOSPITAL
+export async function getVehicleLocation(id: string) {
+  const data = await api.get<
+    never,
+    ApiResponse<{
+      vehicle_id: string;
+      lat: number;
+      lng: number;
+      last_seen: string;
+    }>
+  >(`/api/vehicles/${id}/location`);
+  return data.data;
 }
 
-export async function updateBedCapacity(hospitalId: string, available: number) {
-  // REAL: PUT .../hospital/:id/capacity
-  return { hospitalId, available }
+export async function pushVehicleLocation(
+  id: string,
+  payload: {
+    lat: number;
+    lng: number;
+    speed_kmh?: number;
+    incident_id?: string;
+  },
+) {
+  const data = await api.post<
+    never,
+    ApiResponse<{ vehicle_id: string; lat: number; lng: number }>
+  >(`/api/vehicles/${id}/location`, payload);
+  return data.data;
 }
 
-export async function updateAmbulanceStatus(ambId: string, status: string) {
-  // REAL: PUT .../ambulances/:id/status
-  return { ambId, status }
+// ── Dispatches ────────────────────────────────
+export async function getDispatches() {
+  const data = await api.get<never, ApiResponse<Dispatch[]>>("/api/dispatches");
+  return data.data;
 }
 
-// ── Police Service ────────────────────────────
-export async function getPoliceStation() {
-  // REAL: GET .../police-station
-  return MOCK_POLICE_STATION
+export async function getDispatch(id: string) {
+  const data = await api.get<never, ApiResponse<Dispatch>>(
+    `/api/dispatches/${id}`,
+  );
+  return data.data;
 }
 
-export async function updateOfficerStatus(officerId: string, status: string) {
-  // REAL: PUT .../officers/:id/status
-  return { officerId, status }
+export async function updateDispatchStatus(id: string, status: string) {
+  const data = await api.put<never, ApiResponse<Dispatch>>(
+    `/api/dispatches/${id}/status`,
+    { status },
+  );
+  return data.data;
 }
 
-// ── Fire Service ──────────────────────────────
-export async function getFireStation() {
-  // REAL: GET .../fire-station
-  return MOCK_FIRE_STATION
+// ── Analytics ─────────────────────────────────
+export async function getAnalyticsSummary() {
+  const data = await api.get<never, ApiResponse<AnalyticsSummary>>(
+    "/api/analytics/incidents/summary",
+  );
+  return data.data;
 }
 
-// ── Analytics Service ─────────────────────────
-export async function getAnalytics() {
-  // REAL: GET ${API_URLS.analytics}/analytics/response-times
-  //       GET ${API_URLS.analytics}/analytics/incidents-by-region
-  //       GET ${API_URLS.analytics}/analytics/resource-utilization
-  return MOCK_ANALYTICS
+export async function getResponseTimes() {
+  const data = await api.get<never, ApiResponse<ResponseTimeMetric[]>>(
+    "/api/analytics/response-times",
+  );
+  return data.data;
+}
+
+export async function getIncidentsByRegion() {
+  const data = await api.get<never, ApiResponse<RegionMetric[]>>(
+    "/api/analytics/incidents-by-region",
+  );
+  return data.data;
+}
+
+export async function getResourceUtilization() {
+  const data = await api.get<never, ApiResponse<ResourceUtilization[]>>(
+    "/api/analytics/resource-utilization",
+  );
+  return data.data;
+}
+
+export async function getHospitalCapacityAnalytics() {
+  const data = await api.get<never, ApiResponse<HospitalCapacity[]>>(
+    "/api/analytics/hospital-capacity",
+  );
+  return data.data;
+}
+
+export async function getTopResponders() {
+  const data = await api.get<never, ApiResponse<ResourceUtilization[]>>(
+    "/api/analytics/top-responders",
+  );
+  return data.data;
+}
+
+// ── WebSocket ─────────────────────────────────
+export function createDispatchSocket(
+  incidentId: string,
+  onLocationUpdate: (data: unknown) => void,
+  onStatusChange: (data: unknown) => void,
+) {
+  const WS_URL =
+    process.env.NEXT_PUBLIC_DISPATCH_WS_URL ||
+    "https://emergency-dispatch-service.onrender.com";
+
+  import("socket.io-client").then(({ io }) => {
+    const socket = io(WS_URL, {
+      path: "/socket.io",
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      socket.emit("join:incident", { incident_id: incidentId });
+    });
+
+    socket.on("vehicle:location:update", onLocationUpdate);
+    socket.on("dispatch:status:changed", onStatusChange);
+  });
 }
