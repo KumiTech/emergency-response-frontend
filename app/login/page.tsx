@@ -19,12 +19,12 @@ const DEMO_CREDENTIALS = [
   { label: "Fire Admin", role: "fire_admin" },
 ];
 
-const ROLE_EMAILS: Record<string, string> = {
-  system_admin: "admin@emergency.gh",
-  hospital_admin: "korlebu@emergency.gh",
-  police_admin: "police@emergency.gh",
-  fire_admin: "fire@emergency.gh",
-};
+
+
+
+
+
+
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -39,22 +39,24 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!email) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
     setLoading(true);
     try {
-      const loginEmail =
-        email || (selectedRole ? ROLE_EMAILS[selectedRole] : "");
-      if (!loginEmail) {
-        setError("Please select an account type or enter your email.");
-        setLoading(false);
-        return;
-      }
-      await login(loginEmail, password);
+      await login(email, password);
     } catch {
       setError("Invalid credentials.");
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <>
@@ -478,7 +480,7 @@ export default function LoginPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
               <div style={{ marginBottom: "12px" }}>
                 <label
                   style={{
@@ -494,6 +496,7 @@ export default function LoginPage() {
                 <input
                   className="login-input"
                   type="email"
+                  required
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
