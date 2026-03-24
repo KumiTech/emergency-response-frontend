@@ -26,7 +26,8 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
+
   logout: () => void;
   isLoading: boolean;
 }
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string): Promise<AuthUser> {
     const API_BASE =
       process.env.NEXT_PUBLIC_API_URL ||
       "https://emergency-api-gateway.onrender.com";
@@ -93,8 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("erpRefreshToken", data.data.refreshToken);
     localStorage.setItem("erpUser", JSON.stringify(typedUser));
 
-    router.push(ROLE_ROUTES[typedUser.role] || "/dashboard/dispatch");
+    return typedUser;
   }
+
 
   function logout() {
     setUser(null);

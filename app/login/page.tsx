@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+
+import { useAuth, ROLE_ROUTES } from "@/lib/auth-context";
+
 import { useTheme } from "@/lib/theme-context";
 import {
   Shield,
@@ -29,6 +32,8 @@ const DEMO_CREDENTIALS = [
 export default function LoginPage() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -39,6 +44,10 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!selectedRole) {
+      setError("Please select an account type above.");
+      return;
+    }
     if (!email) {
       setError("Please enter your email address.");
       return;
@@ -49,13 +58,19 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await login(email, password);
+      const loggedInUser = await login(email, password);
+      if (loggedInUser.role !== selectedRole) {
+        setError("This account does not match the selected role.");
+        return;
+      }
+      router.push(ROLE_ROUTES[loggedInUser.role] || "/dashboard/dispatch");
     } catch {
       setError("Invalid credentials.");
     } finally {
       setLoading(false);
     }
   }
+
 
 
   return (
@@ -384,9 +399,8 @@ export default function LoginPage() {
                       className="demo-btn"
                       onClick={() => {
                         setSelectedRole(c.role);
-                        setEmail("");
-                        setPassword("");
                       }}
+
                       style={{
                         background: isSelected
                           ? theme === "dark"
@@ -500,8 +514,8 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    setSelectedRole(null);
                   }}
+
                   placeholder={
                     selectedRole
                       ? "Press Sign in or type your email"
