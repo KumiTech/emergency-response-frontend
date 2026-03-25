@@ -2,7 +2,7 @@ import axios from "axios";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://emergency-api-gateway.onrender.com";
+  "https://emergency-api-gateway-hq5m.onrender.com";
 
 // ── Types ─────────────────────────────────────
 export type Role =
@@ -448,7 +448,8 @@ export function createDispatchSocket(
 ) {
   const WS_URL =
     process.env.NEXT_PUBLIC_DISPATCH_WS_URL ||
-    "https://emergency-dispatch-service.onrender.com";
+        "https://emergency-dispatch-service-8ymi.onrender.com";
+
 
   import("socket.io-client").then(({ io }) => {
     const socket = io(WS_URL, {

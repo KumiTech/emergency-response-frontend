@@ -53,7 +53,8 @@ const ROLE_COLORS: Record<
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://emergency-api-gateway.onrender.com";
+   "https://emergency-api-gateway-hq5m.onrender.com";
+
 
 interface User {
   user_id: string;

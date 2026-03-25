@@ -70,7 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string): Promise<AuthUser> {
     const API_BASE =
       process.env.NEXT_PUBLIC_API_URL ||
-      "https://emergency-api-gateway.onrender.com";
+         "https://emergency-api-gateway-hq5m.onrender.com";
+
 
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
