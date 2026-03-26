@@ -66,37 +66,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, []);
-
+  
   async function login(email: string, password: string): Promise<AuthUser> {
     const API_BASE =
       process.env.NEXT_PUBLIC_API_URL ||
          "https://emergency-api-gateway-hq5m.onrender.com";
 
+    let lastError: Error | null = null;
 
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        // --- LASER-FOCUSED WAKE UP ---
+        // Only wake up the Auth service! Leave the others sleeping to save Render hours.
+        try {
+          const healthRes = await fetch(`${API_BASE}/health`);
+          const healthData = await healthRes.json();
+          if (healthData?.services?.auth) {
+            fetch(`${healthData.services.auth}/health`, { mode: 'no-cors' }).catch(() => null);
+          }
+        } catch (e) {}
+        // -----------------------------
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Login failed");
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
 
-    const typedUser: AuthUser = {
-      user_id: data.data.user.user_id,
-      name: data.data.user.name,
-      email: data.data.user.email,
-      role: data.data.user.role as Role,
-    };
+        if (res.status >= 500) {
+          lastError = new Error("Server starting up");
+          await new Promise((r) => setTimeout(r, 6000));
+          continue;
+        }
 
-    setUser(typedUser);
-    setToken(data.data.accessToken);
-    localStorage.setItem("erpToken", data.data.accessToken);
-    localStorage.setItem("erpRefreshToken", data.data.refreshToken);
-    localStorage.setItem("erpUser", JSON.stringify(typedUser));
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || "Invalid credentials");
+        }
 
-    return typedUser;
+        const data = await res.json();
+
+        const typedUser: AuthUser = {
+          user_id: data.data.user.user_id,
+          name: data.data.user.name,
+          email: data.data.user.email,
+          role: data.data.user.role as Role,
+        };
+
+        setUser(typedUser);
+        setToken(data.data.accessToken);
+        localStorage.setItem("erpToken", data.data.accessToken);
+        localStorage.setItem("erpRefreshToken", data.data.refreshToken);
+        localStorage.setItem("erpUser", JSON.stringify(typedUser));
+
+        return typedUser;
+      } catch (err) {
+        if (err instanceof Error && err.message === "Server starting up") {
+          continue;
+        }
+        if (err instanceof TypeError) {
+          lastError = new Error("Server starting up");
+          await new Promise((r) => setTimeout(r, 6000));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    throw lastError || new Error("Server is unavailable, please try again");
   }
+
+
+
 
 
   function logout() {

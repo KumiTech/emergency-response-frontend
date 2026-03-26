@@ -18,6 +18,12 @@ import {
 } from "@/lib/api";
 import type { Incident, Vehicle } from "@/lib/api";
 
+import dynamic from "next/dynamic";
+import { useTheme } from "@/lib/theme-context";
+
+const LeafletMap = dynamic(() => import("./MapView"), { ssr: false });
+
+
 const TYPE_COLORS: Record<
   string,
   { bg: string; border: string; text: string; label: string }
@@ -365,230 +371,230 @@ function NewIncidentModal({
 }
 
 // ── Map placeholder ──────────────────────────
-function MapView({
-  incidents,
-  vehicles,
-  selectedId,
-}: {
-  incidents: Incident[];
-  vehicles: Vehicle[];
-  selectedId: string | null;
-}) {
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "#0d1020",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
-          backgroundSize: "50px 50px",
-        }}
-      />
-      {[
-        { left: "0", top: "38%", width: "100%", height: "3px" },
-        { left: "0", top: "63%", width: "100%", height: "2px" },
-        { left: "28%", top: "0", width: "2px", height: "100%" },
-        { left: "66%", top: "0", width: "3px", height: "100%" },
-      ].map((r, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            background: "rgba(255,255,255,0.05)",
-            borderRadius: "2px",
-            ...r,
-          }}
-        />
-      ))}
+// function MapView({
+//   incidents,
+//   vehicles,
+//   selectedId,
+// }: {
+//   incidents: Incident[];
+//   vehicles: Vehicle[];
+//   selectedId: string | null;
+// }) {
+//   return (
+//     <div
+//       style={{
+//         width: "100%",
+//         height: "100%",
+//         background: "#0d1020",
+//         position: "relative",
+//         overflow: "hidden",
+//       }}
+//     >
+//       <div
+//         style={{
+//           position: "absolute",
+//           inset: 0,
+//           backgroundImage:
+//             "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+//           backgroundSize: "50px 50px",
+//         }}
+//       />
+//       {[
+//         { left: "0", top: "38%", width: "100%", height: "3px" },
+//         { left: "0", top: "63%", width: "100%", height: "2px" },
+//         { left: "28%", top: "0", width: "2px", height: "100%" },
+//         { left: "66%", top: "0", width: "3px", height: "100%" },
+//       ].map((r, i) => (
+//         <div
+//           key={i}
+//           style={{
+//             position: "absolute",
+//             background: "rgba(255,255,255,0.05)",
+//             borderRadius: "2px",
+//             ...r,
+//           }}
+//         />
+//       ))}
 
-      {incidents
-        .filter((i) => i.status !== "resolved")
-        .map((inc, idx) => {
-          const c = TYPE_COLORS[inc.incident_type] || TYPE_COLORS.other;
-          const positions = [
-            { left: "42%", top: "30%" },
-            { left: "70%", top: "55%" },
-            { left: "22%", top: "60%" },
-            { left: "50%", top: "70%" },
-          ];
-          const pos = positions[idx % positions.length];
-          const isSelected = inc.incident_id === selectedId;
-          return (
-            <div
-              key={inc.incident_id}
-              style={{
-                position: "absolute",
-                ...pos,
-                transform: "translate(-50%, -50%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                zIndex: isSelected ? 10 : 5,
-              }}
-            >
-              {isSelected && (
-                <div
-                  className="ping-ring"
-                  style={{
-                    position: "absolute",
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "50%",
-                    border: `2px solid ${c.text}`,
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                  }}
-                />
-              )}
-              <div
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "50%",
-                  background: c.bg,
-                  border: `2px solid ${c.text}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <AlertTriangle size={12} color={c.text} />
-              </div>
-              <div
-                style={{
-                  marginTop: "3px",
-                  fontSize: "9px",
-                  padding: "1px 5px",
-                  background: c.bg,
-                  color: c.text,
-                  borderRadius: "3px",
-                  border: `1px solid ${c.border}`,
-                  whiteSpace: "nowrap",
-                  fontWeight: "500",
-                }}
-              >
-                {inc.incident_id.slice(0, 8)}
-              </div>
-            </div>
-          );
-        })}
+//       {incidents
+//         .filter((i) => i.status !== "resolved")
+//         .map((inc, idx) => {
+//           const c = TYPE_COLORS[inc.incident_type] || TYPE_COLORS.other;
+//           const positions = [
+//             { left: "42%", top: "30%" },
+//             { left: "70%", top: "55%" },
+//             { left: "22%", top: "60%" },
+//             { left: "50%", top: "70%" },
+//           ];
+//           const pos = positions[idx % positions.length];
+//           const isSelected = inc.incident_id === selectedId;
+//           return (
+//             <div
+//               key={inc.incident_id}
+//               style={{
+//                 position: "absolute",
+//                 ...pos,
+//                 transform: "translate(-50%, -50%)",
+//                 display: "flex",
+//                 flexDirection: "column",
+//                 alignItems: "center",
+//                 zIndex: isSelected ? 10 : 5,
+//               }}
+//             >
+//               {isSelected && (
+//                 <div
+//                   className="ping-ring"
+//                   style={{
+//                     position: "absolute",
+//                     width: "28px",
+//                     height: "28px",
+//                     borderRadius: "50%",
+//                     border: `2px solid ${c.text}`,
+//                     top: "50%",
+//                     left: "50%",
+//                     transform: "translate(-50%, -50%)",
+//                   }}
+//                 />
+//               )}
+//               <div
+//                 style={{
+//                   width: "28px",
+//                   height: "28px",
+//                   borderRadius: "50%",
+//                   background: c.bg,
+//                   border: `2px solid ${c.text}`,
+//                   display: "flex",
+//                   alignItems: "center",
+//                   justifyContent: "center",
+//                 }}
+//               >
+//                 <AlertTriangle size={12} color={c.text} />
+//               </div>
+//               <div
+//                 style={{
+//                   marginTop: "3px",
+//                   fontSize: "9px",
+//                   padding: "1px 5px",
+//                   background: c.bg,
+//                   color: c.text,
+//                   borderRadius: "3px",
+//                   border: `1px solid ${c.border}`,
+//                   whiteSpace: "nowrap",
+//                   fontWeight: "500",
+//                 }}
+//               >
+//                 {inc.incident_id.slice(0, 8)}
+//               </div>
+//             </div>
+//           );
+//         })}
 
-      {vehicles
-        .filter((v) => v.status === "dispatched")
-        .map((v, idx) => {
-          const vPositions = [
-            { left: "36%", top: "44%" },
-            { left: "62%", top: "48%" },
-            { left: "18%", top: "54%" },
-          ];
-          const pos = vPositions[idx % vPositions.length];
-          return (
-            <div
-              key={v.vehicle_id}
-              style={{
-                position: "absolute",
-                ...pos,
-                background: "rgba(12,14,20,0.9)",
-                border: "1px solid var(--border2)",
-                borderRadius: "5px",
-                padding: "3px 8px",
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                fontSize: "10px",
-                color: "var(--text)",
-                zIndex: 6,
-              }}
-            >
-              <div
-                className="pulse-dot"
-                style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  background:
-                    v.vehicle_type === "police"
-                      ? "var(--blue)"
-                      : v.vehicle_type === "fire_truck"
-                        ? "var(--amber)"
-                        : "var(--green)",
-                }}
-              />
-              {v.plate_number}
-            </div>
-          );
-        })}
+//       {vehicles
+//         .filter((v) => v.status === "dispatched")
+//         .map((v, idx) => {
+//           const vPositions = [
+//             { left: "36%", top: "44%" },
+//             { left: "62%", top: "48%" },
+//             { left: "18%", top: "54%" },
+//           ];
+//           const pos = vPositions[idx % vPositions.length];
+//           return (
+//             <div
+//               key={v.vehicle_id}
+//               style={{
+//                 position: "absolute",
+//                 ...pos,
+//                 background: "rgba(12,14,20,0.9)",
+//                 border: "1px solid var(--border2)",
+//                 borderRadius: "5px",
+//                 padding: "3px 8px",
+//                 display: "flex",
+//                 alignItems: "center",
+//                 gap: "5px",
+//                 fontSize: "10px",
+//                 color: "var(--text)",
+//                 zIndex: 6,
+//               }}
+//             >
+//               <div
+//                 className="pulse-dot"
+//                 style={{
+//                   width: "6px",
+//                   height: "6px",
+//                   borderRadius: "50%",
+//                   background:
+//                     v.vehicle_type === "police"
+//                       ? "var(--blue)"
+//                       : v.vehicle_type === "fire_truck"
+//                         ? "var(--amber)"
+//                         : "var(--green)",
+//                 }}
+//               />
+//               {v.plate_number}
+//             </div>
+//           );
+//         })}
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: "12px",
-          right: "12px",
-          background: "rgba(12,14,20,0.85)",
-          border: "1px solid var(--border)",
-          borderRadius: "6px",
-          padding: "7px 10px",
-          fontSize: "10px",
-          color: "var(--muted)",
-        }}
-      >
-        Google Maps integration coming soon
-      </div>
+//       <div
+//         style={{
+//           position: "absolute",
+//           bottom: "12px",
+//           right: "12px",
+//           background: "rgba(12,14,20,0.85)",
+//           border: "1px solid var(--border)",
+//           borderRadius: "6px",
+//           padding: "7px 10px",
+//           fontSize: "10px",
+//           color: "var(--muted)",
+//         }}
+//       >
+//         Google Maps integration coming soon
+//       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: "12px",
-          left: "12px",
-          background: "rgba(12,14,20,0.85)",
-          border: "1px solid var(--border)",
-          borderRadius: "6px",
-          padding: "7px 10px",
-          display: "flex",
-          gap: "12px",
-        }}
-      >
-        {[
-          { color: "var(--red)", label: "Crime" },
-          { color: "var(--amber)", label: "Fire" },
-          { color: "var(--green)", label: "Medical" },
-          { color: "var(--blue)", label: "Accident" },
-        ].map((l) => (
-          <div
-            key={l.label}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              fontSize: "10px",
-              color: "var(--muted)",
-            }}
-          >
-            <div
-              style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: l.color,
-              }}
-            />
-            {l.label}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+//       <div
+//         style={{
+//           position: "absolute",
+//           bottom: "12px",
+//           left: "12px",
+//           background: "rgba(12,14,20,0.85)",
+//           border: "1px solid var(--border)",
+//           borderRadius: "6px",
+//           padding: "7px 10px",
+//           display: "flex",
+//           gap: "12px",
+//         }}
+//       >
+//         {[
+//           { color: "var(--red)", label: "Crime" },
+//           { color: "var(--amber)", label: "Fire" },
+//           { color: "var(--green)", label: "Medical" },
+//           { color: "var(--blue)", label: "Accident" },
+//         ].map((l) => (
+//           <div
+//             key={l.label}
+//             style={{
+//               display: "flex",
+//               alignItems: "center",
+//               gap: "5px",
+//               fontSize: "10px",
+//               color: "var(--muted)",
+//             }}
+//           >
+//             <div
+//               style={{
+//                 width: "7px",
+//                 height: "7px",
+//                 borderRadius: "50%",
+//                 background: l.color,
+//               }}
+//             />
+//             {l.label}
+//           </div>
+//         ))}
+//       </div>
+//     </div>
+//   );
+// }
 
 // ── Main Dispatch Dashboard ──────────────────
 export default function DispatchDashboard() {
@@ -596,6 +602,7 @@ export default function DispatchDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     getOpenIncidents().then(setIncidents).catch(console.error);
@@ -839,11 +846,17 @@ export default function DispatchDashboard() {
         </div>
 
         {/* CENTER: Map */}
-        <MapView
+        <LeafletMap
           incidents={incidents}
           vehicles={vehicles}
           selectedId={selected?.incident_id || null}
+          theme={theme}
+          onSelectIncident={(id) => {
+            const inc = incidents.find((i) => i.incident_id === id);
+            setSelected(inc || null);
+          }}
         />
+
 
         {/* RIGHT: Detail panel */}
         <div

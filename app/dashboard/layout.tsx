@@ -45,17 +45,20 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
+
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!user) router.replace("/login");
-  }, [user, router]);
+    if (!isLoading && !user) router.replace("/login");
+  }, [user, isLoading, router]);
 
-  if (!user)
+
+  if (isLoading || !user)
     return (
+
       <div
         style={{
           minHeight: "100vh",

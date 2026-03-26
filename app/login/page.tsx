@@ -64,8 +64,9 @@ export default function LoginPage() {
         return;
       }
       router.push(ROLE_ROUTES[loggedInUser.role] || "/dashboard/dispatch");
-    } catch {
-      setError("Invalid credentials.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid credentials.");
+
     } finally {
       setLoading(false);
     }

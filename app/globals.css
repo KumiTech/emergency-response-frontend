@@ -2,6 +2,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import "leaflet/dist/leaflet.css";
 
 :root {
   --bg: #0c0e14;
@@ -433,4 +434,11 @@ html[data-theme="light"] .login-input::placeholder {
 html[data-theme="light"] .submit-btn:disabled {
   background: rgba(124, 58, 237, 0.3) !important;
   color: #7c3aed;
+}
+
+
+@keyframes ping-beacon {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+  70% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
 }

@@ -9,7 +9,8 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { registerUser } from "@/lib/api";
+import { api, registerUser } from "@/lib/api";
+
 import type { AuthUser } from "@/lib/api";
 
 const ROLES = [
@@ -83,11 +84,8 @@ export default function AdminPage() {
   async function fetchUsers() {
     setLoading(true);
     try {
-      const token = localStorage.getItem("erpToken");
-      const res = await fetch(`${API_BASE}/api/auth/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      // Using 'api.get' automatically attaches the token AND uses our retry/wake-up logic!
+      const data: any = await api.get("/api/auth/users");
       if (data.success) setUsers(data.data);
     } catch (err) {
       console.error("Failed to fetch users:", err);
@@ -95,6 +93,7 @@ export default function AdminPage() {
       setLoading(false);
     }
   }
+
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -116,20 +115,13 @@ export default function AdminPage() {
 
   async function handleDeactivate(userId: string, isActive: boolean) {
     try {
-      const token = localStorage.getItem("erpToken");
-      await fetch(`${API_BASE}/api/auth/users/${userId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ is_active: !isActive }),
-      });
+      await api.put(`/api/auth/users/${userId}`, { is_active: !isActive });
       fetchUsers();
     } catch (err) {
       console.error("Failed to update user:", err);
     }
   }
+
 
   useEffect(() => {
     fetchUsers();

@@ -135,7 +135,8 @@ export interface HospitalCapacity {
 }
 
 // ── Axios instance ────────────────────────────
-const api = axios.create({
+export const api = axios.create({
+
   baseURL: API_BASE,
   headers: { "Content-Type": "application/json" },
 });
@@ -150,15 +151,54 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error: unknown) => {
+  async (error: any) => {
+    const config = error.config;
+    
+    // Silent retry for 5xx errors or network connect errors
+    if (config && (!error.response || error.response.status >= 500)) {
+      config.__retryCount = config.__retryCount || 0;
+      if (config.__retryCount < 10) {
+        config.__retryCount += 1;
+        
+        // --- LASER-FOCUSED WAKE-UP ---
+        // Look at the URL that failed, and wake up ONLY that specific service!
+        try {
+          const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://emergency-api-gateway-hq5m.onrender.com";
+          const healthRes = await fetch(`${API_BASE}/health`);
+          const data = await healthRes.json();
+          
+          if (data && data.services) {
+             const requestUrl = config.url || "";
+             if (requestUrl.includes("/api/incidents") && data.services.incident) {
+               fetch(`${data.services.incident}/health`, { mode: 'no-cors' }).catch(() => null);
+             }
+             if (requestUrl.includes("/api/vehicles") || requestUrl.includes("/api/dispatches")) {
+               if (data.services.dispatch) fetch(`${data.services.dispatch}/health`, { mode: 'no-cors' }).catch(() => null);
+             }
+             if (requestUrl.includes("/api/analytics") && data.services.analytics) {
+               fetch(`${data.services.analytics}/health`, { mode: 'no-cors' }).catch(() => null);
+             }
+          }
+        } catch(e) {}
+        // -----------------------------
+
+        await new Promise((resolve) => setTimeout(resolve, 6000));
+        return api(config);
+      }
+    }
+
     if (axios.isAxiosError(error)) {
-      const message =
-        error.response?.data?.message || error.message || "Request failed";
+      let message = error.response?.data?.message || error.message || "Request failed";
+      if (!error.response || error.response.status >= 500) {
+        message = "Services are currently taking a while to wake up. Please refresh the page in a moment.";
+      }
       throw new Error(message);
     }
     throw new Error("An unexpected error occurred");
-  },
+  }
 );
+
+
 
 // ── Helper type ───────────────────────────────
 interface ApiResponse<T> {
