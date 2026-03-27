@@ -172,7 +172,12 @@ api.interceptors.response.use(
              if (requestUrl.includes("/api/incidents") && data.services.incident) {
                fetch(`${data.services.incident}/health`, { mode: 'no-cors' }).catch(() => null);
              }
-             if (requestUrl.includes("/api/vehicles") || requestUrl.includes("/api/dispatches")) {
+             if (
+               requestUrl.includes("/api/vehicles") || 
+               requestUrl.includes("/api/dispatches") ||
+               requestUrl.includes("/api/hospitals") ||
+               requestUrl.includes("/api/responders")
+             ) {
                if (data.services.dispatch) fetch(`${data.services.dispatch}/health`, { mode: 'no-cors' }).catch(() => null);
              }
              if (requestUrl.includes("/api/analytics") && data.services.analytics) {

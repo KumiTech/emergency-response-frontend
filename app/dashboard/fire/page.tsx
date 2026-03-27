@@ -30,6 +30,14 @@ export default function FireDashboard() {
   const [showForm, setShowForm] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const [form, setForm] = useState({
     name: "",
@@ -136,7 +144,7 @@ export default function FireDashboard() {
             marginBottom: "24px",
           }}
         >
-          <div>
+          <div style={{ marginBottom: isMobile ? "12px" : "0" }}>
             <h1
               style={{
                 fontSize: "18px",
@@ -239,7 +247,7 @@ export default function FireDashboard() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
             gap: "12px",
             marginBottom: "24px",
           }}
@@ -335,7 +343,7 @@ export default function FireDashboard() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr",
                   gap: "12px",
                   marginBottom: "12px",
                 }}
@@ -513,6 +521,7 @@ export default function FireDashboard() {
             border: "1px solid var(--border)",
             borderRadius: "12px",
             overflow: "hidden",
+            overflowX: "auto",
           }}
         >
           <div
@@ -554,14 +563,14 @@ export default function FireDashboard() {
                     background: "var(--bg3)",
                   }}
                 >
-                  {[
+                  {([
                     "Unit Name",
-                    "Region",
-                    "Contact",
+                    !isMobile ? "Region" : null,
+                    !isMobile ? "Contact" : null,
                     "Location",
                     "Status",
                     "Action",
-                  ].map((h) => (
+                  ].filter(Boolean) as string[]).map((h) => (
                     <th
                       key={h}
                       style={{
@@ -630,25 +639,29 @@ export default function FireDashboard() {
                           </span>
                         </div>
                       </td>
-                      <td
-                        style={{
-                          padding: "11px 18px",
-                          fontSize: "12px",
-                          color: "var(--muted)",
-                        }}
-                      >
-                        {r.region || "—"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "11px 18px",
-                          fontSize: "12px",
-                          color: "var(--muted)",
-                          fontFamily: "var(--font-mono)",
-                        }}
-                      >
-                        {r.contact_phone || "—"}
-                      </td>
+                      {!isMobile && (
+                        <td
+                          style={{
+                            padding: "11px 18px",
+                            fontSize: "12px",
+                            color: "var(--muted)",
+                          }}
+                        >
+                          {r.region || "—"}
+                        </td>
+                      )}
+                      {!isMobile && (
+                        <td
+                          style={{
+                            padding: "11px 18px",
+                            fontSize: "12px",
+                            color: "var(--muted)",
+                            fontFamily: "var(--font-mono)",
+                          }}
+                        >
+                          {r.contact_phone || "—"}
+                        </td>
+                      )}
                       <td
                         style={{
                           padding: "11px 18px",

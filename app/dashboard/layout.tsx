@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-context";
@@ -50,6 +50,14 @@ export default function DashboardLayout({
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) router.replace("/login");
@@ -99,7 +107,7 @@ export default function DashboardLayout({
     display: "flex" as const,
     alignItems: "center" as const,
     gap: "5px",
-    padding: "5px 10px",
+    padding: isMobile ? "6px 8px" : "5px 10px",
     borderRadius: "6px",
     fontSize: "12px",
     textDecoration: "none",
@@ -150,16 +158,18 @@ export default function DashboardLayout({
             >
               <Shield size={13} color="var(--red)" />
             </div>
-            <span
-              style={{
-                fontSize: "13px",
-                fontWeight: "600",
-                color: "var(--text)",
-                letterSpacing: "0.02em",
-              }}
-            >
-              GH Emergency Response
-            </span>
+            {!isMobile && (
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "var(--text)",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                GH Emergency Response
+              </span>
+            )}
             <span
               style={{
                 fontSize: "10px",
@@ -185,8 +195,8 @@ export default function DashboardLayout({
                 accentBg,
               )}
             >
-              <Activity size={12} />
-              Dashboard
+              <Activity size={isMobile ? 14 : 12} />
+              {!isMobile && "Dashboard"}
             </Link>
             <Link
               href="/dashboard/analytics"
@@ -196,16 +206,16 @@ export default function DashboardLayout({
                 "var(--amber-bg)",
               )}
             >
-              <BarChart2 size={12} />
-              Analytics
+              <BarChart2 size={isMobile ? 14 : 12} />
+              {!isMobile && "Analytics"}
             </Link>
             {user.role === "system_admin" && (
               <Link
                 href="/dashboard/admin"
                 style={navLinkStyle(onAdmin, "var(--red)", "var(--red-bg)")}
               >
-                <Users size={12} />
-                Admin
+                <Users size={isMobile ? 14 : 12} />
+                {!isMobile && "Admin"}
               </Link>
             )}
           </nav>
@@ -277,27 +287,29 @@ export default function DashboardLayout({
             >
               {initials}
             </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <span
-                style={{
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  color: "var(--text)",
-                  lineHeight: 1.2,
-                }}
-              >
-                {user.name}
-              </span>
-              <span
-                style={{
-                  fontSize: "10px",
-                  color: "var(--muted)",
-                  lineHeight: 1.2,
-                }}
-              >
-                {ROLE_LABELS[user.role]}
-              </span>
-            </div>
+            {!isMobile && (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    color: "var(--text)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {user.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "var(--muted)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {ROLE_LABELS[user.role]}
+                </span>
+              </div>
+            )}
           </div>
 
           <button
@@ -310,7 +322,7 @@ export default function DashboardLayout({
               background: "none",
               border: "1px solid var(--border)",
               borderRadius: "6px",
-              padding: "5px 10px",
+              padding: isMobile ? "6px" : "5px 10px",
               cursor: "pointer",
               color: "var(--muted)",
               fontSize: "12px",
@@ -326,7 +338,7 @@ export default function DashboardLayout({
               e.currentTarget.style.color = "var(--muted)";
             }}
           >
-            <LogOut size={12} /> Sign out
+            <LogOut size={isMobile ? 16 : 12} /> {!isMobile && "Sign out"}
           </button>
         </div>
       </header>

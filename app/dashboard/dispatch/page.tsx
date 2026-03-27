@@ -602,7 +602,18 @@ export default function DispatchDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false); // <--- ADD THIS
+
+  useEffect(() => {
+    // --- ADD THIS BLOCK ---
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const { theme } = useTheme();
+
 
   useEffect(() => {
     getOpenIncidents().then(setIncidents).catch(console.error);
@@ -640,18 +651,22 @@ export default function DispatchDashboard() {
           alignItems: "center",
           borderBottom: "1px solid var(--border)",
           background: "var(--bg2)",
-          padding: "0 20px",
+          padding: isMobile ? "0 12px" : "0 20px",
           height: "40px",
+          overflowX: "auto",
+          scrollbarWidth: "none", // Keeps it strictly scrollable
+          WebkitOverflowScrolling: "touch",
         }}
       >
         {[
-          { label: "Active", val: stats.active, color: "var(--red)" },
-          { label: "Dispatched", val: stats.dispatched, color: "var(--amber)" },
-          { label: "Resolved", val: stats.resolved, color: "var(--green)" },
+          { label: "Active", val: stats.active, color: "var(--red)", mobileLabel: "Act" },
+          { label: "Dispatched", val: stats.dispatched, color: "var(--amber)", mobileLabel: "Disp" },
+          { label: "Resolved", val: stats.resolved, color: "var(--green)", mobileLabel: "Res" },
           {
             label: "Vehicles out",
             val: vehicles.filter((v) => v.status === "dispatched").length,
             color: "var(--blue)",
+            mobileLabel: "Cars",
           },
         ].map((s, i) => (
           <div
@@ -659,24 +674,27 @@ export default function DispatchDashboard() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "8px",
-              padding: "0 16px",
+              gap: isMobile ? "4px" : "8px",
+              paddingRight: isMobile ? "8px" : "16px",
+              paddingLeft: i === 0 ? 0 : (isMobile ? "8px" : "16px"), // Safely replaces the shorthand conflict!
               borderRight: "1px solid var(--border)",
               height: "100%",
-              ...(i === 0 ? { paddingLeft: 0 } : {}),
+              flexShrink: 0, // Prevents elements from squishing together on small screens!
             }}
           >
             <span
-              style={{ fontSize: "16px", fontWeight: "600", color: s.color }}
+              style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: "600", color: s.color }}
             >
               {s.val}
             </span>
-            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-              {s.label}
+            <span style={{ fontSize: isMobile ? "10px" : "11px", color: "var(--muted)" }}>
+              {isMobile ? s.mobileLabel : s.label}
             </span>
           </div>
         ))}
-        <div style={{ flex: 1 }} />
+        
+        <div style={{ flex: 1, minWidth: isMobile ? "10px" : "auto" }} />
+        
         <button
           onClick={() => setShowModal(true)}
           style={{
@@ -686,37 +704,46 @@ export default function DispatchDashboard() {
             background: "var(--red)",
             border: "none",
             borderRadius: "6px",
-            padding: "5px 12px",
+            padding: isMobile ? "5px 8px" : "5px 12px",
             color: "#fff",
             fontSize: "12px",
             fontWeight: "500",
             cursor: "pointer",
+            flexShrink: 0, // Prevents button from squishing!
             fontFamily: "var(--font-display)",
           }}
         >
-          <Plus size={12} /> New Incident
+          <Plus size={12} /> {!isMobile && "New Incident"}
         </button>
       </div>
 
+
+
+
       {/* Main 3-panel layout */}
-      <div
-        style={{
-          flex: 1,
-          display: "grid",
-          gridTemplateColumns: "280px 1fr 260px",
-          overflow: "hidden",
-        }}
+      <div 
+        style={
+          isMobile 
+            ? { flex: 1, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }
+            : { flex: 1, display: "grid", gridTemplateColumns: "280px 1fr 260px", overflow: "hidden" }
+        }
       >
+
         {/* LEFT: Incident list */}
         <div
           style={{
+            ...(isMobile 
+                 ? { height: "35%", width: "100%", order: 2, borderTop: "1px solid var(--border)" } 
+                 : { borderRight: "1px solid var(--border)" }),
             background: "var(--bg2)",
-            borderRight: "1px solid var(--border)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
+            zIndex: 20
           }}
         >
+
+
           <div
             style={{
               padding: "10px 14px",
@@ -846,8 +873,14 @@ export default function DispatchDashboard() {
         </div>
 
         {/* CENTER: Map */}
-        <LeafletMap
-          incidents={incidents}
+        <div 
+           style={isMobile ? { order: 1, height: "65%", position: "relative", zIndex: 0 } : { position: "relative", flex: 1 }}
+        >
+          <LeafletMap
+            incidents={incidents}
+
+
+
           vehicles={vehicles}
           selectedId={selected?.incident_id || null}
           theme={theme}
@@ -855,19 +888,23 @@ export default function DispatchDashboard() {
             const inc = incidents.find((i) => i.incident_id === id);
             setSelected(inc || null);
           }}
-        />
+        /></div>
 
 
         {/* RIGHT: Detail panel */}
         <div
           style={{
+            ...(isMobile 
+                ? { position: "absolute", bottom: 0, left: 0, width: "100%", height: "55%", zIndex: 30, boxShadow: "0 -10px 40px rgba(0,0,0,0.5)" } 
+                : { borderLeft: "1px solid var(--border)" }),
+            display: selected || !isMobile ? "flex" : "none",
             background: "var(--bg2)",
-            borderLeft: "1px solid var(--border)",
-            display: "flex",
             flexDirection: "column",
             overflow: "hidden",
           }}
         >
+
+
           {selected ? (
             <>
               <div
@@ -926,7 +963,13 @@ export default function DispatchDashboard() {
                     }}
                   >
                     {STATUS_LABELS[selected.status]}
-                  </span>
+                  </span>                {/* --- PASTE THIS MOBILE CLOSE BUTTON HERE --- */}
+                <button 
+                  className="md:hidden ml-2 p-1 bg-[var(--bg3)] text-[var(--muted)] border border-[var(--border)] rounded-md cursor-pointer" 
+                  onClick={() => setSelected(null)}
+                >
+                  <X size={14} />
+                </button>
                 </div>
               </div>
 
