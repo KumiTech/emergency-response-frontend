@@ -20,6 +20,7 @@ const DEMO_CREDENTIALS = [
   { label: "Hospital Admin", role: "hospital_admin" },
   { label: "Police Admin", role: "police_admin" },
   { label: "Fire Admin", role: "fire_admin" },
+  { label: "Ambulance Driver", role: "ambulance_driver" },
 ];
 
 

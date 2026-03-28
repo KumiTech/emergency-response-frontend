@@ -5,6 +5,7 @@ import {
   useJsApiLoader,
   OverlayView,
 } from "@react-google-maps/api";
+import { createDispatchSocket } from "@/lib/api";
 
 const DARK_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0c0e14" }] },
@@ -188,6 +189,34 @@ export default function MapView({
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const [, setMapReady] = useState(false);
+  const [activeGPS, setActiveGPS] = useState<Record<string, { lat: number; lng: number }>>({});
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    setActiveGPS({}); // clear old tracking
+
+    let currentSocket: any = null;
+    
+    createDispatchSocket(
+      selectedId,
+      (data: any) => {
+        if (data && data.vehicle_id && data.lat) {
+          setActiveGPS((prev) => ({
+            ...prev,
+            [data.vehicle_id]: { lat: Number(data.lat), lng: Number(data.lng) },
+          }));
+        }
+      },
+      (statusData: any) => console.log("Status changed:", statusData)
+    ).then((sock) => {
+      currentSocket = sock;
+    });
+
+    return () => {
+      if (currentSocket) currentSocket.disconnect();
+    };
+  }, [selectedId]);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -322,31 +351,42 @@ export default function MapView({
         .filter(
           (v) => v.status === "dispatched" && v.current_lat && v.current_lng
         )
-        .map((v) => (
-          <OverlayView
-            key={v.vehicle_id}
-            position={{ lat: Number(v.current_lat), lng: Number(v.current_lng) }}
+        .map((v) => {
+          const liveData = activeGPS[v.vehicle_id];
+          const lat = liveData ? liveData.lat : Number(v.current_lat);
+          const lng = liveData ? liveData.lng : Number(v.current_lng);
 
-            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-          >
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: "50%",
-                background: "#378add",
-                border: "2px solid #fff",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-              }}
+          let emoji = "🚑";
+          if (v.vehicle_type === "fire_truck") emoji = "🚒";
+          if (v.vehicle_type === "police_car") emoji = "🚓";
+
+          return (
+            <OverlayView
+              key={v.vehicle_id}
+              position={{ lat, lng }}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
             >
-              🚐
-            </div>
-          </OverlayView>
-        ))}
+              <div
+                style={{
+                  width: liveData ? 32 : 26,
+                  height: liveData ? 32 : 26,
+                  borderRadius: "50%",
+                  background: liveData ? "var(--green)" : "#378add",
+                  border: "2px solid #fff",
+                  boxShadow: liveData ? "0 4px 12px rgba(29, 158, 117, 0.6)" : "0 2px 6px rgba(0,0,0,0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: liveData ? 15 : 13,
+                  transition: "all 0.4s ease-out",
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                {emoji}
+              </div>
+            </OverlayView>
+          );
+        })}
     </GoogleMap>
   );
 }

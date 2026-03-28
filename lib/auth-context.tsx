@@ -39,7 +39,7 @@ export const ROLE_ROUTES: Record<string, string> = {
   hospital_admin: "/dashboard/hospital",
   police_admin: "/dashboard/police",
   fire_admin: "/dashboard/fire",
-  ambulance_driver: "/dashboard/dispatch",
+  ambulance_driver: "/dashboard/driver",
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

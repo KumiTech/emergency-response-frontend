@@ -496,8 +496,8 @@ export function createDispatchSocket(
         "https://emergency-dispatch-service-8ymi.onrender.com";
 
 
-  import("socket.io-client").then(({ io }) => {
-    const socket = io(WS_URL, {
+  return import("socket.io-client").then(({ io }) => {
+    const socket = io(`${WS_URL}/tracking`, {
       path: "/socket.io",
       transports: ["websocket"],
     });
@@ -508,5 +508,21 @@ export function createDispatchSocket(
 
     socket.on("vehicle:location:update", onLocationUpdate);
     socket.on("dispatch:status:changed", onStatusChange);
+    
+    return socket;
+  });
+}
+
+export function createDriverSocket() {
+  const WS_URL =
+    process.env.NEXT_PUBLIC_DISPATCH_WS_URL ||
+        "https://emergency-dispatch-service-8ymi.onrender.com";
+
+  return import("socket.io-client").then(({ io }) => {
+    const socket = io(`${WS_URL}/tracking`, {
+      path: "/socket.io",
+      transports: ["websocket"],
+    });
+    return socket;
   });
 }
