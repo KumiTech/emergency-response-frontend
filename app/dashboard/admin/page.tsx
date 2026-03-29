@@ -15,7 +15,7 @@ import {
   Edit2,
   Flame,
 } from "lucide-react";
-import { api, registerUser, getHospitalsFull, updateUser, createHospital } from "@/lib/api";
+import { api, registerUser, getHospitalsFull, registerResponder, updateUser, createHospital } from "@/lib/api";
 
 import type { Hospital } from "@/lib/api";
 
@@ -140,10 +140,24 @@ export default function AdminPage() {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [hospitalsLoading, setHospitalsLoading] = useState(false);
 
+  // Unit registration states
+  const [showUnitForm, setShowUnitForm] = useState(false);
+  const [selectedHospitalForUnit, setSelectedHospitalForUnit] = useState<Hospital | null>(null);
+  const [unitForm, setUnitForm] = useState({
+    name: "",
+    contact_phone: "",
+    region: "",
+    latitude: "",
+    longitude: "",
+  });
+
   async function fetchHospitals() {
     setHospitalsLoading(true);
     try {
-      const data = await getHospitalsFull();
+      let data = await getHospitalsFull();
+      if (user?.role !== "system_admin" && user?.hospital_id) {
+        data = data.filter((h) => h.hospital_id === user.hospital_id);
+      }
       setHospitals(data);
     } catch (err) {
       console.error("Failed to fetch hospitals:", err);
@@ -177,6 +191,38 @@ export default function AdminPage() {
       fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register user");
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
+  async function handleRegisterUnit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedHospitalForUnit) return;
+    setFormLoading(true);
+    setSuccess("");
+    setError("");
+
+    try {
+      let rType = "ambulance";
+      if (selectedHospitalForUnit.type === "police_station") rType = "police_car";
+      if (selectedHospitalForUnit.type === "fire_station") rType = "fire_truck";
+
+      await registerResponder({
+        name: unitForm.name,
+        type: rType,
+        latitude: parseFloat(unitForm.latitude),
+        longitude: parseFloat(unitForm.longitude),
+        hospital_id: selectedHospitalForUnit.hospital_id,
+        contact_phone: unitForm.contact_phone,
+        region: unitForm.region,
+      });
+
+      setSuccess(`Unit registered successfully for ${selectedHospitalForUnit.name}!`);
+      setShowUnitForm(false);
+      fetchHospitals(); // Refresh to see new unit
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to register unit");
     } finally {
       setFormLoading(false);
     }
@@ -1101,17 +1147,54 @@ export default function AdminPage() {
                     </div>
 
                     <div style={{ padding: "16px", flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: "600",
-                          color: "var(--muted)",
-                          letterSpacing: "0.05em",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        LINKED {theme.unitLabel} ({h.responders?.length || 0})
-                      </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              color: "var(--muted)",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            LINKED {theme.unitLabel} ({h.responders?.length || 0})
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSelectedHospitalForUnit(h);
+                              setUnitForm({
+                                name: "",
+                                contact_phone: "",
+                                region: h.region || "",
+                                latitude: String(h.latitude),
+                                longitude: String(h.longitude),
+                              });
+                              setShowUnitForm(true);
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: "none",
+                              border: "none",
+                              color: theme.color,
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              backgroundColor: `${theme.color}15`,
+                            }}
+                          >
+                            <Plus size={10} /> Register {theme.unitLabel.slice(0, -1)}
+                          </button>
+                        </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {h.responders && h.responders.length > 0 ? (
@@ -1190,6 +1273,140 @@ export default function AdminPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Unit Registration Modal */}
+      {showUnitForm && selectedHospitalForUnit && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--bg2)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              width: "100%",
+              maxWidth: "480px",
+              padding: "24px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+            }}
+          >
+            <div style={{ marginBottom: "20px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text)", marginBottom: "4px" }}>
+                Register New Unit
+              </h2>
+              <p style={{ fontSize: "12px", color: "var(--muted)" }}>
+                Adding to {selectedHospitalForUnit.name}
+              </p>
+            </div>
+
+            <form onSubmit={handleRegisterUnit}>
+              <div style={{ display: "grid", gap: "16px", marginBottom: "24px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>
+                    UNIT NAME / CALLSIGN
+                  </label>
+                  <input
+                    required
+                    placeholder="e.g. Ambulance 01"
+                    style={inputStyle}
+                    value={unitForm.name}
+                    onChange={(e) => setUnitForm(p => ({ ...p, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>
+                    CONTACT NUMBER / PLATE
+                  </label>
+                  <input
+                    required
+                    placeholder="+233..."
+                    style={inputStyle}
+                    value={unitForm.contact_phone}
+                    onChange={(e) => setUnitForm(p => ({ ...p, contact_phone: e.target.value }))}
+                  />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                   <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>
+                      LATITUDE
+                    </label>
+                    <input
+                      required
+                      type="number"
+                      step="any"
+                      style={inputStyle}
+                      value={unitForm.latitude}
+                      onChange={(e) => setUnitForm(p => ({ ...p, latitude: e.target.value }))}
+                    />
+                  </div>
+                   <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>
+                      LONGITUDE
+                    </label>
+                    <input
+                      required
+                      type="number"
+                      step="any"
+                      style={inputStyle}
+                      value={unitForm.longitude}
+                      onChange={(e) => setUnitForm(p => ({ ...p, longitude: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowUnitForm(false)}
+                  style={{
+                    padding: "10px 20px",
+                    background: "var(--bg3)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    color: "var(--muted)",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-display)",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  style={{
+                    padding: "10px 24px",
+                    background: INSTITUTION_THEMES[selectedHospitalForUnit.type || "hospital"].color,
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: formLoading ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-display)",
+                    opacity: formLoading ? 0.7 : 1,
+                  }}
+                >
+                  {formLoading ? "Registering..." : "Confirm Unit"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

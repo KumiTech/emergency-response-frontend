@@ -6,6 +6,8 @@ import {
   OverlayView,
 } from "@react-google-maps/api";
 import { createDispatchSocket } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { Truck, Shield, Flame } from "lucide-react";
 
 const DARK_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0c0e14" }] },
@@ -64,6 +66,12 @@ const TYPE_COLORS: Record<string, string> = {
   medical: "#1d9e75",
   accident: "#378add",
   other: "#e24b4a",
+};
+
+const VEHICLE_ICONS: Record<string, string> = {
+  ambulance: "🚑",
+  police: "🚓",
+  fire_truck: "🚒",
 };
 
 interface Incident {
@@ -183,48 +191,48 @@ export default function MapView({
   theme,
   onSelectIncident,
 }: MapViewProps) {
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
-  });
-
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const [, setMapReady] = useState(false);
+  const { isLoaded } = useJsApiLoader({ id: "google-map-script", googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "" });
+  const { user } = useAuth();
+  const [map, setMap] = useState<google.maps.Map | null>(null);
   const [activeGPS, setActiveGPS] = useState<Record<string, { lat: number; lng: number }>>({});
+  const socketRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!selectedId) return;
+    // We listen to TWO sources:
+    // 1. Specific incident if selected
+    // 2. The entire station if admin/dispatcher
+    const trackingId = selectedId || (user?.hospital_id ? `station:${user.hospital_id}` : null);
+    if (!trackingId) return;
 
-    setActiveGPS({}); // clear old tracking
-
-    let currentSocket: any = null;
+    if (socketRef.current) socketRef.current.disconnect();
     
-    createDispatchSocket(
-      selectedId,
+    socketRef.current = createDispatchSocket(
+      trackingId, 
       (data: any) => {
-        if (data && data.vehicle_id && data.lat) {
-          setActiveGPS((prev) => ({
+        if (data.vehicle_id && data.latitude && data.longitude) {
+          setActiveGPS(prev => ({
             ...prev,
-            [data.vehicle_id]: { lat: Number(data.lat), lng: Number(data.lng) },
+            [data.vehicle_id]: { 
+              lat: Number(data.latitude), 
+              lng: Number(data.longitude) 
+            }
           }));
         }
       },
-      (statusData: any) => console.log("Status changed:", statusData)
-    ).then((sock) => {
-      currentSocket = sock;
-    });
+      (status: any) => console.log("Status update:", status)
+    );
 
     return () => {
-      if (currentSocket) currentSocket.disconnect();
+      if (socketRef.current) socketRef.current.disconnect();
     };
-  }, [selectedId]);
+  }, [selectedId, user?.hospital_id]);
 
   const onLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-    setMapReady(true);
+    setMap(map);
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current || !selectedId) return;
+    if (!map || !selectedId) return;
     const inc = incidents.find((i) => i.incident_id === selectedId);
     
     if (inc) {
@@ -232,10 +240,10 @@ export default function MapView({
       const targetLng = Number(inc.longitude);
       const targetZoom = 11;
       
-      const currentCenter = mapRef.current.getCenter();
+      const currentCenter = map.getCenter();
       const currentLat = currentCenter?.lat() || targetLat;
       const currentLng = currentCenter?.lng() || targetLng;
-      const currentZoom = mapRef.current.getZoom() || 12;
+      const currentZoom = map.getZoom() || 12;
 
       // Calculate approximate distance to see if it's off-screen
       const distance = Math.sqrt(
@@ -251,30 +259,30 @@ export default function MapView({
             clearInterval(outInterval);
             
             // 2. Now that we are high up, GLIDE to the new point
-            mapRef.current?.panTo({ lat: targetLat, lng: targetLng });
+            map?.panTo({ lat: targetLat, lng: targetLng });
             
             // 3. Wait for the glide to finish, then smoothly ZOOM IN
             setTimeout(() => {
                let zIn = 12;
                const inInterval = setInterval(() => {
                  if (zIn >= targetZoom) {
-                   mapRef.current?.setZoom(targetZoom);
+                   map?.setZoom(targetZoom);
                    clearInterval(inInterval);
                  } else {
                    zIn += 0.2;
-                   mapRef.current?.setZoom(zIn);
+                   map?.setZoom(zIn);
                  }
                }, 20);
             }, 700); // 700ms glide duration
             
           } else {
             zOut -= 0.4; // Zoom out speed
-            mapRef.current?.setZoom(zOut);
+            map.setZoom(zOut);
           }
         }, 20);
       } else {
          // They are close! Normal glide and zoom.
-         mapRef.current.panTo({ lat: targetLat, lng: targetLng });
+         map.panTo({ lat: targetLat, lng: targetLng });
          
          if (currentZoom !== targetZoom) {
            let zIn = currentZoom;
@@ -282,18 +290,18 @@ export default function MapView({
            setTimeout(() => {
               const inInterval = setInterval(() => {
                 if ((step > 0 && zIn >= targetZoom) || (step < 0 && zIn <= targetZoom)) {
-                  mapRef.current?.setZoom(targetZoom);
+                  map?.setZoom(targetZoom);
                   clearInterval(inInterval);
                 } else {
                   zIn += step;
-                  mapRef.current?.setZoom(zIn);
+                  map?.setZoom(zIn);
                 }
               }, 20);
            }, 400);
          }
       }
     }
-  }, [selectedId, incidents]);
+  }, [selectedId, incidents, map]);
 
   if (!isLoaded) {
     return (
@@ -347,46 +355,29 @@ export default function MapView({
           </OverlayView>
         ))}
 
-      {vehicles
-        .filter(
-          (v) => v.status === "dispatched" && v.current_lat && v.current_lng
-        )
-        .map((v) => {
-          const liveData = activeGPS[v.vehicle_id];
-          const lat = liveData ? liveData.lat : Number(v.current_lat);
-          const lng = liveData ? liveData.lng : Number(v.current_lng);
-
-          let emoji = "🚑";
-          if (v.vehicle_type === "fire_truck") emoji = "🚒";
-          if (v.vehicle_type === "police_car") emoji = "🚓";
-
-          return (
-            <OverlayView
-              key={v.vehicle_id}
-              position={{ lat, lng }}
-              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-            >
+      {vehicles.map((v) => {
+        const pos = activeGPS[v.vehicle_id] || (v.current_lat && v.current_lng ? { lat: Number(v.current_lat), lng: Number(v.current_lng) } : null);
+        if (!pos) return null;
+        const emoji = VEHICLE_ICONS[v.vehicle_type] || "🚑";
+        return (
+          <OverlayView
+            key={v.vehicle_id}
+            position={pos}
+            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+          >
+            <div style={{ transform: "translate(-50%, -50%)", cursor: "pointer", filter: "drop-shadow(0 0 10px rgba(0,0,0,0.5))" }}>
               <div
                 style={{
-                  width: liveData ? 32 : 26,
-                  height: liveData ? 32 : 26,
-                  borderRadius: "50%",
-                  background: liveData ? "var(--green)" : "#378add",
-                  border: "2px solid #fff",
-                  boxShadow: liveData ? "0 4px 12px rgba(29, 158, 117, 0.6)" : "0 2px 6px rgba(0,0,0,0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: liveData ? 15 : 13,
-                  transition: "all 0.4s ease-out",
-                  transform: "translate(-50%, -50%)",
+                  fontSize: "24px",
+                  animation: "pulse 2s infinite ease-in-out",
                 }}
               >
                 {emoji}
               </div>
-            </OverlayView>
-          );
-        })}
+            </div>
+          </OverlayView>
+        );
+      })}
     </GoogleMap>
   );
 }
