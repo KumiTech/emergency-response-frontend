@@ -152,45 +152,70 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// --- Wakeup Synchronization ---
+let activeWakeup: Promise<void> | null = null;
+
 api.interceptors.response.use(
   (response) => response.data,
   async (error: any) => {
     const config = error.config;
+    const requestUrl = config?.url || "";
     
-    // Silent retry for 5xx errors or network connect errors
+    // Explicitly do NOT retry 401/403 errors (Auth/Permissions)
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      const message = error.response.data?.message || "Access denied";
+      throw new Error(message);
+    }
+
+    // Silent retry for 5xx errors or network connection failures (likely cold starts)
     if (config && (!error.response || error.response.status >= 500)) {
       config.__retryCount = config.__retryCount || 0;
       if (config.__retryCount < 10) {
         config.__retryCount += 1;
         
-        // --- LASER-FOCUSED WAKE-UP ---
-        // Look at the URL that failed, and wake up ONLY that specific service!
-        try {
-          const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://emergency-api-gateway-hq5m.onrender.com";
-          const healthRes = await fetch(`${API_BASE}/health`);
-          const data = await healthRes.json();
-          
-          if (data && data.services) {
-             const requestUrl = config.url || "";
-             if (requestUrl.includes("/api/incidents") && data.services.incident) {
-               fetch(`${data.services.incident}/health`, { mode: 'no-cors' }).catch(() => null);
-             }
-             if (
-               requestUrl.includes("/api/vehicles") || 
-               requestUrl.includes("/api/dispatches") ||
-               requestUrl.includes("/api/hospitals") ||
-               requestUrl.includes("/api/responders")
-             ) {
-               if (data.services.dispatch) fetch(`${data.services.dispatch}/health`, { mode: 'no-cors' }).catch(() => null);
-             }
-             if (requestUrl.includes("/api/analytics") && data.services.analytics) {
-               fetch(`${data.services.analytics}/health`, { mode: 'no-cors' }).catch(() => null);
-             }
-          }
-        } catch(e) {}
-        // -----------------------------
+        // Coordinated Wakeup: Only one set of pings per 15 seconds
+        if (!activeWakeup) {
+          activeWakeup = (async () => {
+            console.warn(`[WAKEUP] Cold start detected on: ${requestUrl}. Triggering Laser-Focused pings...`);
+            try {
+              const GATEWAY_BASE = process.env.NEXT_PUBLIC_API_URL || "https://emergency-api-gateway-hq5m.onrender.com";
+              
+              // 1. Wake up the Gateway first
+              const healthRes = await fetch(`${GATEWAY_BASE}/health`).catch(() => null);
+              const data = healthRes ? await healthRes.json().catch(() => null) : null;
+              
+              // 2. Extract services from gateway if available
+              const svcs = data?.services || {
+                auth: "https://emergency-auth-service-2w1u.onrender.com",
+                incident: "https://emergency-incident-service-v32u.onrender.com",
+                dispatch: "https://emergency-dispatch-service-8ymi.onrender.com",
+                analytics: "https://emergency-analytics-service-q6v8.onrender.com"
+              };
 
-        await new Promise((resolve) => setTimeout(resolve, 6000));
+              // 3. TARGETED PINGS (Direct Bypass)
+              // Wake up ONLY the service needed for this specific request
+              if (requestUrl.includes("/api/auth") && svcs.auth) {
+                fetch(`${svcs.auth}/health`, { mode: 'no-cors' }).catch(() => null);
+              }
+              if ((requestUrl.includes("/api/incidents") || requestUrl.includes("/api/responders") || requestUrl.includes("/api/hospitals")) && svcs.incident) {
+                fetch(`${svcs.incident}/health`, { mode: 'no-cors' }).catch(() => null);
+              }
+              if ((requestUrl.includes("/api/vehicles") || requestUrl.includes("/api/dispatches")) && svcs.dispatch) {
+                fetch(`${svcs.dispatch}/health`, { mode: 'no-cors' }).catch(() => null);
+              }
+              if (requestUrl.includes("/api/analytics") && svcs.analytics) {
+                fetch(`${svcs.analytics}/health`, { mode: 'no-cors' }).catch(() => null);
+              }
+            } catch(e) {}
+            
+            // Allow enough time for the cold start before cleaning up the promise
+            await new Promise(r => setTimeout(r, 6000));
+            activeWakeup = null;
+          })();
+        }
+
+        // All overlapping failures wait for the SAME coordinated wakeup
+        await activeWakeup;
         return api(config);
       }
     }
@@ -368,6 +393,7 @@ export async function createHospital(payload: {
   longitude: number;
   total_beds: number;
   available_beds: number;
+  type?: "hospital" | "police_station" | "fire_station";
 }) {
   const data = await api.post<never, ApiResponse<Hospital>>(
     "/api/hospitals",

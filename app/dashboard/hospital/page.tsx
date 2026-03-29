@@ -141,11 +141,12 @@ export default function HospitalDashboard() {
         getResponders(),
       ]);
 
-      // Filter based on user's linked hospital_id
-      const filteredHospitals =
-        user?.role === "system_admin"
-          ? allHospitals
-          : allHospitals.filter((h) => h.hospital_id === user?.hospital_id);
+      // Filter based on user's linked hospital_id AND type 'hospital'
+      const filteredHospitals = allHospitals.filter((h) => {
+        if (h.type && h.type !== "hospital") return false;
+        if (user?.role === "system_admin") return true;
+        return h.hospital_id === user?.hospital_id;
+      });
 
       setHospitals(filteredHospitals);
       setResponders(allResponders.filter((r: Responder) => r.type === "ambulance"));
@@ -332,28 +333,30 @@ export default function HospitalDashboard() {
             >
               <RefreshCw size={12} /> Refresh
             </button>
-            <button
-              onClick={() => {
-                setShowNewHosp(!showNewHosp);
-                setError("");
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                background: "var(--green)",
-                border: "none",
-                borderRadius: "7px",
-                padding: "8px 14px",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: "500",
-                cursor: "pointer",
-                fontFamily: "var(--font-display)",
-              }}
-            >
-              <Plus size={12} /> New Hospital
-            </button>
+            {user?.role === "system_admin" && (
+              <button
+                onClick={() => {
+                  setShowNewHosp(!showNewHosp);
+                  setError("");
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  background: "var(--green)",
+                  border: "none",
+                  borderRadius: "7px",
+                  padding: "8px 14px",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                <Plus size={12} /> New Hospital
+              </button>
+            )}
           </div>
         </div>
 

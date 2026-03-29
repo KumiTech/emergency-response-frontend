@@ -13,8 +13,9 @@ import {
   MapPin,
   Truck,
   Edit2,
+  Flame,
 } from "lucide-react";
-import { api, registerUser, getHospitalsFull, updateUser } from "@/lib/api";
+import { api, registerUser, getHospitalsFull, updateUser, createHospital } from "@/lib/api";
 
 import type { Hospital } from "@/lib/api";
 
@@ -79,7 +80,7 @@ const INSTITUTION_THEMES: Record<
   },
   fire_station: {
     label: "Fire Station",
-    icon: <Activity size={10} />, 
+    icon: <Flame size={10} />, 
     color: "var(--amber)",
     bg: "var(--amber-bg)",
     border: "var(--amber-border)",
@@ -113,6 +114,15 @@ export default function AdminPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showInstForm, setShowInstForm] = useState(false);
+  const [instForm, setInstForm] = useState({
+    name: "",
+    type: "hospital" as "hospital" | "police_station" | "fire_station",
+    latitude: "",
+    longitude: "",
+    total_beds: "0",
+    available_beds: "0",
+  });
 
   const [activeTab, setActiveTab] = useState<"users" | "resources">("users");
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -155,6 +165,38 @@ export default function AdminPage() {
       fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register user");
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
+  async function handleRegisterInstitution(e: React.FormEvent) {
+    e.preventDefault();
+    setFormLoading(true);
+    setError("");
+    setSuccess("");
+    try {
+      await createHospital({
+        name: instForm.name,
+        type: instForm.type,
+        latitude: parseFloat(instForm.latitude),
+        longitude: parseFloat(instForm.longitude),
+        total_beds: parseInt(instForm.total_beds),
+        available_beds: parseInt(instForm.available_beds),
+      });
+      setSuccess(`${instForm.name} registered successfully!`);
+      setInstForm({
+        name: "",
+        type: "hospital",
+        latitude: "",
+        longitude: "",
+        total_beds: "0",
+        available_beds: "0",
+      });
+      setShowInstForm(false);
+      fetchHospitals();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to register institution");
     } finally {
       setFormLoading(false);
     }
@@ -259,7 +301,8 @@ export default function AdminPage() {
           </button>
           <button
             onClick={() => {
-              setShowForm(!showForm);
+              if (activeTab === "users") setShowForm(!showForm);
+              else setShowInstForm(!showInstForm);
               setError("");
               setSuccess("");
             }}
@@ -278,7 +321,11 @@ export default function AdminPage() {
               fontFamily: "var(--font-display)",
             }}
           >
-            <UserPlus size={12} /> Register User
+            {activeTab === "users" ? (
+              <><UserPlus size={12} /> Register User</>
+            ) : (
+              <><Building2 size={12} /> Register Institution</>
+            )}
           </button>
         </div>
       </div>
@@ -810,6 +857,161 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="animate-fade-in">
+          {success && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "var(--green-bg)",
+                border: "1px solid var(--green-border)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+              }}
+            >
+              <CheckCircle size={14} color="var(--green)" />
+              <span style={{ fontSize: "13px", color: "var(--green)" }}>{success}</span>
+            </div>
+          )}
+          {error && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "var(--red-bg)",
+                border: "1px solid var(--red-border)",
+                borderRadius: "8px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+              }}
+            >
+              <XCircle size={14} color="var(--red)" />
+              <span style={{ fontSize: "13px", color: "var(--red)" }}>{error}</span>
+            </div>
+          )}
+
+          {showInstForm && (
+            <div
+              style={{
+                background: "var(--bg2)",
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                padding: "20px",
+                marginBottom: "24px",
+              }}
+              className="animate-slide-in"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "16px",
+                }}
+              >
+                <Building2 size={14} color="var(--blue)" />
+                <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)" }}>
+                  Register New Institution
+                </span>
+              </div>
+
+              <form onSubmit={handleRegisterInstitution}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "5px", letterSpacing: "0.04em" }}>NAME</label>
+                    <input
+                      required
+                      placeholder="e.g. Korle Bu Teaching Hospital"
+                      value={instForm.name}
+                      onChange={(e) => setInstForm(p => ({ ...p, name: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "5px", letterSpacing: "0.04em" }}>TYPE</label>
+                    <select
+                      value={instForm.type}
+                      onChange={(e) => setInstForm(p => ({ ...p, type: e.target.value as any }))}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
+                      <option value="hospital">Hospital</option>
+                      <option value="police_station">Police Station</option>
+                      <option value="fire_station">Fire Station</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "5px", letterSpacing: "0.04em" }}>LATITUDE</label>
+                    <input
+                      required
+                      type="number"
+                      step="any"
+                      placeholder="5.55"
+                      value={instForm.latitude}
+                      onChange={(e) => setInstForm(p => ({ ...p, latitude: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "5px", letterSpacing: "0.04em" }}>LONGITUDE</label>
+                    <input
+                      required
+                      type="number"
+                      step="any"
+                      placeholder="-0.20"
+                      value={instForm.longitude}
+                      onChange={(e) => setInstForm(p => ({ ...p, longitude: e.target.value }))}
+                      style={inputStyle}
+                    />
+                  </div>
+                </div>
+
+                {instForm.type === "hospital" && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "5px", letterSpacing: "0.04em" }}>TOTAL BEDS</label>
+                      <input
+                        type="number"
+                        value={instForm.total_beds}
+                        onChange={(e) => setInstForm(p => ({ ...p, total_beds: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "5px", letterSpacing: "0.04em" }}>AVAILABLE BEDS</label>
+                      <input
+                        type="number"
+                        value={instForm.available_beds}
+                        onChange={(e) => setInstForm(p => ({ ...p, available_beds: e.target.value }))}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowInstForm(false)}
+                    style={{ padding: "8px 16px", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: "7px", color: "var(--muted)", fontSize: "12px", cursor: "pointer", fontFamily: "var(--font-display)" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={formLoading}
+                    style={{ padding: "8px 20px", background: "var(--blue)", border: "none", borderRadius: "7px", color: "#fff", fontSize: "12px", fontWeight: "500", cursor: formLoading ? "not-allowed" : "pointer", fontFamily: "var(--font-display)", opacity: formLoading ? 0.7 : 1 }}
+                  >
+                    {formLoading ? "Registering…" : "Register Institution"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           {hospitalsLoading ? (
             <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
               Loading resource data…
