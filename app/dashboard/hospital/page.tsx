@@ -8,7 +8,9 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
+  Building,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 import {
   getHospitals,
   createHospital,
@@ -99,6 +101,7 @@ function CapacityBar({
 }
 
 export default function HospitalDashboard() {
+  const { user } = useAuth();
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [responders, setResponders] = useState<Responder[]>([]);
   const [selected, setSelected] = useState<Hospital | null>(null);
@@ -133,10 +136,23 @@ export default function HospitalDashboard() {
   async function fetchData() {
     setLoading(true);
     try {
-      const [h, r] = await Promise.all([getHospitals(), getResponders()]);
-      setHospitals(h);
-      setResponders(r.filter((r: Responder) => r.type === "ambulance"));
-      if (h.length > 0 && !selected) setSelected(h[0]);
+      const [allHospitals, allResponders] = await Promise.all([
+        getHospitals(),
+        getResponders(),
+      ]);
+
+      // Filter based on user's linked hospital_id
+      const filteredHospitals =
+        user?.role === "system_admin"
+          ? allHospitals
+          : allHospitals.filter((h) => h.hospital_id === user?.hospital_id);
+
+      setHospitals(filteredHospitals);
+      setResponders(allResponders.filter((r: Responder) => r.type === "ambulance"));
+      
+      if (filteredHospitals.length > 0 && !selected) {
+        setSelected(filteredHospitals[0]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -582,14 +598,26 @@ export default function HospitalDashboard() {
               background: "var(--bg2)",
               border: "1px solid var(--border)",
               borderRadius: "12px",
-              padding: "40px",
+              padding: "60px 40px",
               textAlign: "center",
-              color: "var(--muted)",
-              fontSize: "13px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "16px",
             }}
           >
-            No hospitals registered yet. Click &quot;New Hospital&quot; to add
-            one.
+            <div style={{ color: "var(--muted)", background: "var(--bg3)", padding: "12px", borderRadius: "50%" }}>
+              <Building size={32} opacity={0.6} />
+            </div>
+            <div>
+              <div style={{ color: "var(--text)", fontWeight: "600", marginBottom: "4px" }}>
+                No Linked Institution
+              </div>
+              <p style={{ color: "var(--muted)", fontSize: "12px", maxWidth: "300px", margin: "0 auto" }}>
+                Your account is not currently linked to any hospital or station. 
+                Please contact a System Administrator to finalize your setup.
+              </p>
+            </div>
           </div>
         ) : (
           <>

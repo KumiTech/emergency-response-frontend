@@ -8,7 +8,9 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
+  Building,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 import { getResponders, registerResponder, updateResponder } from "@/lib/api";
 import type { Responder } from "@/lib/api";
 
@@ -26,6 +28,7 @@ const AVAILABILITY_COLORS = {
 };
 
 export default function PoliceDashboard() {
+  const { user } = useAuth();
   const [responders, setResponders] = useState<Responder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -45,7 +48,12 @@ export default function PoliceDashboard() {
     setLoading(true);
     try {
       const all = await getResponders();
-      setResponders(all.filter((r: Responder) => r.type === "police"));
+      const filtered = all.filter((r: Responder) => {
+        if (r.type !== "police") return false;
+        if (user?.role === "system_admin") return true;
+        return r.hospital_id === user?.hospital_id;
+      });
+      setResponders(filtered);
     } catch (err) {
       console.error(err);
     } finally {
@@ -70,6 +78,7 @@ export default function PoliceDashboard() {
         longitude: parseFloat(form.longitude),
         contact_phone: form.contact_phone,
         region: form.region,
+        hospital_id: user?.hospital_id || undefined,
       });
       setSuccess(`${form.name} registered successfully!`);
       setForm({
@@ -539,14 +548,26 @@ export default function PoliceDashboard() {
           {responders.length === 0 ? (
             <div
               style={{
-                padding: "32px",
+                padding: "60px 40px",
                 textAlign: "center",
-                color: "var(--muted)",
-                fontSize: "12px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "16px",
               }}
             >
-              No police units registered yet. Click &quot;Register Unit&quot; to
-              add one.
+              <div style={{ color: "var(--muted)", background: "var(--bg3)", padding: "12px", borderRadius: "50%" }}>
+                <Building size={32} opacity={0.6} />
+              </div>
+              <div>
+                <div style={{ color: "var(--text)", fontWeight: "600", marginBottom: "4px" }}>
+                  No Linked Institution
+                </div>
+                <p style={{ color: "var(--muted)", fontSize: "12px", maxWidth: "300px", margin: "0 auto" }}>
+                  Your account is not currently linked to any police station. 
+                  Please contact a System Administrator to finalize your setup.
+                </p>
+              </div>
             </div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>

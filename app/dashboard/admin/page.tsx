@@ -92,6 +92,7 @@ interface User {
   email: string;
   role: string;
   is_active: boolean;
+  hospital_id?: string;
   created_at: string;
 }
 
@@ -107,6 +108,7 @@ export default function AdminPage() {
     email: "",
     password: "",
     role: "hospital_admin",
+    hospital_id: "",
   });
   const [formLoading, setFormLoading] = useState(false);
 
@@ -144,9 +146,9 @@ export default function AdminPage() {
     setError("");
     setSuccess("");
     try {
-      await registerUser(form.name, form.email, form.password, form.role);
+      await registerUser(form.name, form.email, form.password, form.role, form.hospital_id || undefined);
       setSuccess(`${form.name} registered successfully!`);
-      setForm({ name: "", email: "", password: "", role: "hospital_admin" });
+      setForm({ name: "", email: "", password: "", role: "hospital_admin", hospital_id: "" });
       setShowForm(false);
       fetchUsers();
     } catch (err) {
@@ -480,6 +482,38 @@ export default function AdminPage() {
                       ))}
                     </select>
                   </div>
+
+                  {form.role !== "system_admin" && (
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "11px",
+                          color: "var(--muted2)",
+                          marginBottom: "5px",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        ASSIGN INSTITUTION / WORKPLACE
+                      </label>
+                      <select
+                        required={form.role !== "system_admin"}
+                        value={form.hospital_id}
+                        onChange={(e) =>
+                          setForm((p) => ({ ...p, hospital_id: e.target.value }))
+                        }
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                        title="Assigned institution"
+                      >
+                        <option value="">Select an institution...</option>
+                        {hospitals.map((h) => (
+                          <option key={h.hospital_id} value={h.hospital_id}>
+                            {h.name} ({h.type?.replace("_", " ")})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div
@@ -684,6 +718,11 @@ export default function AdminPage() {
                         >
                           {ROLES.find((r) => r.value === u.role)?.label || u.role}
                         </span>
+                        {u.hospital_id && hospitals.length > 0 && (
+                          <div style={{ fontSize: "10px", color: "var(--muted)", marginTop: "4px" }}>
+                            at {hospitals.find(h => h.hospital_id === u.hospital_id)?.name || "Unknown Unit"}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <span

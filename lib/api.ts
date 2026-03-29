@@ -17,6 +17,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  hospital_id?: string;
 }
 
 export interface Incident {
@@ -237,10 +238,11 @@ export async function registerUser(
   email: string,
   password: string,
   role: string,
+  hospital_id?: string,
 ) {
   const data = await api.post<never, ApiResponse<AuthUser>>(
     "/api/auth/register",
-    { name, email, password, role },
+    { name, email, password, role, hospital_id },
   );
   return data.data;
 }

@@ -21,6 +21,7 @@ interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  hospital_id?: string;
 }
 
 interface AuthContextType {
@@ -111,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: data.data.user.name,
           email: data.data.user.email,
           role: data.data.user.role as Role,
+          hospital_id: data.data.user.hospital_id,
         };
 
         setUser(typedUser);
