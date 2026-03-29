@@ -58,6 +58,7 @@ export interface Hospital {
   total_beds: number;
   available_beds: number;
   created_at: string;
+  responders?: Responder[];
 }
 
 export interface Vehicle {
@@ -337,6 +338,13 @@ export async function updateResponder(id: string, payload: Partial<Responder>) {
 // ── Hospitals ─────────────────────────────────
 export async function getHospitals() {
   const data = await api.get<never, ApiResponse<Hospital[]>>("/api/hospitals");
+  return data.data;
+}
+
+export async function getHospitalsFull() {
+  const data = await api.get<never, ApiResponse<Hospital[]>>(
+    "/api/hospitals/full",
+  );
   return data.data;
 }
 

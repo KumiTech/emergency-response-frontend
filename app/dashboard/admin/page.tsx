@@ -8,10 +8,15 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
+  LayoutDashboard,
+  Building2,
+  Activity,
+  MapPin,
+  Truck,
 } from "lucide-react";
-import { api, registerUser } from "@/lib/api";
+import { api, registerUser, getHospitalsFull } from "@/lib/api";
 
-import type { AuthUser } from "@/lib/api";
+import type { AuthUser, Hospital, Responder } from "@/lib/api";
 
 const ROLES = [
   { value: "hospital_admin", label: "Hospital Admin" },
@@ -81,6 +86,22 @@ export default function AdminPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<"users" | "resources">("users");
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [hospitalsLoading, setHospitalsLoading] = useState(false);
+
+  async function fetchHospitals() {
+    setHospitalsLoading(true);
+    try {
+      const data = await getHospitalsFull();
+      setHospitals(data);
+    } catch (err) {
+      console.error("Failed to fetch hospitals:", err);
+    } finally {
+      setHospitalsLoading(false);
+    }
+  }
+
   async function fetchUsers() {
     setLoading(true);
     try {
@@ -125,6 +146,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchHospitals();
   }, []);
 
   const inputStyle = {
@@ -216,7 +238,53 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Success / Error banners */}
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: "24px",
+          borderBottom: "1px solid var(--border)",
+          marginBottom: "24px",
+        }}
+      >
+        {[
+          { id: "users", label: "User Management", icon: <Users size={14} /> },
+          {
+            id: "resources",
+            label: "Hospitals & Resources",
+            icon: <Building2 size={14} />,
+          },
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 4px",
+                background: "none",
+                border: "none",
+                borderBottom: isActive ? "2px solid var(--blue)" : "2px solid transparent",
+                color: isActive ? "var(--blue)" : "var(--muted)",
+                fontSize: "13px",
+                fontWeight: isActive ? "600" : "500",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "users" ? (
+        <>
       {success && (
         <div
           style={{
@@ -684,6 +752,186 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <div className="animate-fade-in">
+          {hospitalsLoading ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "var(--muted)" }}>
+              Loading resource data…
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+                gap: "20px",
+              }}
+            >
+              {hospitals.map((h) => (
+                <div
+                  key={h.hospital_id}
+                  style={{
+                    background: "var(--bg2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "16px",
+                      borderBottom: "1px solid var(--border)",
+                      background: "var(--bg3)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "10px",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: "600",
+                          color: "var(--text)",
+                        }}
+                      >
+                        {h.name}
+                      </h3>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "3px 8px",
+                          borderRadius: "50px",
+                          background: h.available_beds > 0 ? "var(--green-bg)" : "var(--red-bg)",
+                          border: `1px solid ${h.available_beds > 0 ? "var(--green-border)" : "var(--red-border)"}`,
+                          color: h.available_beds > 0 ? "var(--green)" : "var(--red)",
+                          fontSize: "10px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        <Activity size={10} />
+                        {h.available_beds} / {h.total_beds} Beds
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        fontSize: "11px",
+                        color: "var(--muted)",
+                      }}
+                    >
+                      <MapPin size={11} />
+                      {h.latitude.toFixed(4)}, {h.longitude.toFixed(4)}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "16px", flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: "600",
+                        color: "var(--muted)",
+                        letterSpacing: "0.05em",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      LINKED AMBULANCES ({h.responders?.length || 0})
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {h.responders && h.responders.length > 0 ? (
+                        h.responders.map((r) => (
+                          <div
+                            key={r.responder_id}
+                            style={{
+                              padding: "10px",
+                              background: "var(--bg3)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "8px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  fontWeight: "500",
+                                  color: "var(--text)",
+                                }}
+                              >
+                                {r.name}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "9px",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  background: r.is_available ? "var(--green-bg)" : "var(--amber-bg)",
+                                  color: r.is_available ? "var(--green)" : "var(--amber)",
+                                  border: `1px solid ${r.is_available ? "var(--green-border)" : "var(--amber-border)"}`,
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {r.is_available ? "AVAILABLE" : "ON MISSION"}
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                fontSize: "11px",
+                                color: "var(--muted)",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                                <Truck size={10} /> {r.type}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                                {r.contact_phone}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div
+                          style={{
+                            padding: "20px",
+                            textAlign: "center",
+                            fontSize: "12px",
+                            color: "var(--muted2)",
+                            background: "var(--bg3)",
+                            border: "1px dashed var(--border)",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          No ambulances linked to this hospital
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
