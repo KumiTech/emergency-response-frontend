@@ -558,7 +558,9 @@ export function createDispatchSocket(
     });
 
     socket.on("connect", () => {
-      socket.emit("join:incident", { incident_id: incidentId });
+      // If incidentId already has a prefix, join that room. Otherwise, default to incident:
+      const room = incidentId.includes(":") ? incidentId : `incident:${incidentId}`;
+      socket.emit("join:room", { room });
     });
 
     socket.on("vehicle:location:update", onLocationUpdate);

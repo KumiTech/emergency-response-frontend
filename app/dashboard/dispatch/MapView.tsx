@@ -204,9 +204,9 @@ export default function MapView({
     const trackingId = selectedId || (user?.hospital_id ? `station:${user.hospital_id}` : null);
     if (!trackingId) return;
 
-    if (socketRef.current) socketRef.current.disconnect();
+    let currentSocket: any = null;
     
-    socketRef.current = createDispatchSocket(
+    createDispatchSocket(
       trackingId, 
       (data: any) => {
         if (data.vehicle_id && data.latitude && data.longitude) {
@@ -220,10 +220,14 @@ export default function MapView({
         }
       },
       (status: any) => console.log("Status update:", status)
-    );
+    ).then(sock => {
+      currentSocket = sock;
+      socketRef.current = sock;
+    });
 
     return () => {
-      if (socketRef.current) socketRef.current.disconnect();
+      if (currentSocket) currentSocket.disconnect();
+      socketRef.current = null;
     };
   }, [selectedId, user?.hospital_id]);
 
