@@ -12,8 +12,9 @@ import {
   Activity,
   MapPin,
   Truck,
+  Edit2,
 } from "lucide-react";
-import { api, registerUser, getHospitalsFull } from "@/lib/api";
+import { api, registerUser, getHospitalsFull, updateUser } from "@/lib/api";
 
 import type { Hospital } from "@/lib/api";
 
@@ -111,6 +112,7 @@ export default function AdminPage() {
     hospital_id: "",
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const [activeTab, setActiveTab] = useState<"users" | "resources">("users");
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -153,6 +155,26 @@ export default function AdminPage() {
       fetchUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register user");
+    } finally {
+      setFormLoading(false);
+    }
+  }
+
+  async function handleUpdateUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingUser) return;
+    setFormLoading(true);
+    try {
+      await updateUser(editingUser.user_id, {
+        name: editingUser.name,
+        role: editingUser.role,
+        hospital_id: editingUser.hospital_id || undefined,
+      });
+      setSuccess(`${editingUser.name} updated successfully!`);
+      setEditingUser(null);
+      fetchUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update user");
     } finally {
       setFormLoading(false);
     }
@@ -662,7 +684,7 @@ export default function AdminPage() {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "2fr 2fr 1.5fr 1fr 1fr",
+                    gridTemplateColumns: "2fr 2fr 1.5fr 1fr 1.5fr",
                     padding: "8px 16px",
                     borderBottom: "1px solid var(--border)",
                     background: "var(--bg3)",
@@ -690,7 +712,7 @@ export default function AdminPage() {
                       key={u.user_id}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "2fr 2fr 1.5fr 1fr 1fr",
+                        gridTemplateColumns: "2fr 2fr 1.5fr 1fr 1.5fr",
                         padding: "12px 16px",
                         borderBottom: "1px solid var(--border)",
                         alignItems: "center",
@@ -739,7 +761,26 @@ export default function AdminPage() {
                           {u.is_active ? "Active" : "Inactive"}
                         </span>
                       </div>
-                      <div>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          onClick={() => setEditingUser(u)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: "4px 8px",
+                            borderRadius: "5px",
+                            background: "var(--bg3)",
+                            border: "1px solid var(--border)",
+                            color: "var(--muted)",
+                            fontSize: "10px",
+                            cursor: "pointer",
+                            fontFamily: "var(--font-display)",
+                          }}
+                        >
+                          <Edit2 size={10} />
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleDeactivate(u.user_id, u.is_active)}
                           style={{
@@ -757,7 +798,7 @@ export default function AdminPage() {
                           }}
                         >
                           {u.is_active ? <Trash2 size={10} /> : <CheckCircle size={10} />}
-                          {u.is_active ? "Deactivate" : "Activate"}
+                          {u.is_active ? "Disable" : "Enable"}
                         </button>
                       </div>
                     </div>
@@ -935,6 +976,127 @@ export default function AdminPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--bg2)",
+              border: "1px solid var(--border)",
+              borderRadius: "16px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "440px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+            }}
+            className="animate-slide-in"
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              <Edit2 size={18} color="var(--blue)" />
+              <h2 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text)" }}>Edit User Profile</h2>
+            </div>
+
+            <form onSubmit={handleUpdateUser}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>FULL NAME</label>
+                  <input
+                    required
+                    value={editingUser.name}
+                    onChange={(e) => setEditingUser(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>ROLE</label>
+                  <select
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser(prev => prev ? { ...prev, role: e.target.value } : null)}
+                    style={{ ...inputStyle, cursor: "pointer" }}
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {editingUser.role !== "system_admin" && (
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "6px", letterSpacing: "0.04em" }}>ASSIGNED INSTITUTION</label>
+                    <select
+                      required={editingUser.role !== "system_admin"}
+                      value={editingUser.hospital_id || ""}
+                      onChange={(e) => setEditingUser(prev => prev ? { ...prev, hospital_id: e.target.value } : null)}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
+                      <option value="">Select an institution...</option>
+                      {hospitals.map((h) => (
+                        <option key={h.hospital_id} value={h.hospital_id}>
+                          {h.name} ({h.type?.replace("_", " ")})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingUser(null)}
+                  style={{
+                    padding: "10px 18px",
+                    background: "var(--bg3)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    color: "var(--muted)",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-display)",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  style={{
+                    padding: "10px 24px",
+                    background: "var(--blue)",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: formLoading ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-display)",
+                    opacity: formLoading ? 0.7 : 1,
+                  }}
+                >
+                  {formLoading ? "Saving Changes…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

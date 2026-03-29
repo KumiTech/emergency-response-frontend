@@ -247,6 +247,17 @@ export async function registerUser(
   return data.data;
 }
 
+export async function updateUser(
+  id: string,
+  payload: Partial<{ name: string; role: string; hospital_id: string; is_active: boolean }>,
+) {
+  const data = await api.put<never, ApiResponse<AuthUser>>(
+    `/api/auth/users/${id}`,
+    payload,
+  );
+  return data.data;
+}
+
 // ── Incidents ─────────────────────────────────
 export async function getIncidents(filters?: {
   status?: string;
