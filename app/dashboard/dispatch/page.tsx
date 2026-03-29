@@ -9,6 +9,7 @@ import {
   ChevronRight,
   X,
   AlertTriangle,
+  Building2,
 } from "lucide-react";
 import {
   getOpenIncidents,
@@ -994,6 +995,16 @@ export default function DispatchDashboard() {
                     icon: <Truck size={11} />,
                     label: "Unit",
                     val: selected.responder_name || "Pending",
+                  },
+                  {
+                    icon: <Building2 size={11} />,
+                    label: "Institution",
+                    val:
+                      selected.incident_type === "medical"
+                        ? selected.hospital_name || "Pending Hospital"
+                        : vehicles.find(
+                            (v) => v.vehicle_id === selected.assigned_unit_id,
+                          )?.station_id || "Base Station",
                   },
                   {
                     icon: <Clock size={11} />,
