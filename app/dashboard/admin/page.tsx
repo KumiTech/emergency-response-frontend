@@ -20,11 +20,13 @@ import { api, registerUser, getHospitalsFull, updateUser, createHospital } from 
 import type { Hospital } from "@/lib/api";
 
 const ROLES = [
+  { value: "system_admin", label: "System Admin" },
   { value: "hospital_admin", label: "Hospital Admin" },
   { value: "police_admin", label: "Police Admin" },
   { value: "fire_admin", label: "Fire Admin" },
   { value: "ambulance_driver", label: "Ambulance Driver" },
-  { value: "system_admin", label: "System Admin" },
+  { value: "police_driver", label: "Police Driver" },
+  { value: "fire_driver", label: "Fire Driver" },
 ];
 
 const ROLE_COLORS: Record<
@@ -55,6 +57,16 @@ const ROLE_COLORS: Record<
     bg: "var(--green-bg)",
     border: "var(--green-border)",
     text: "var(--green)",
+  },
+  police_driver: {
+    bg: "var(--blue-bg)",
+    border: "var(--blue-border)",
+    text: "var(--blue)",
+  },
+  fire_driver: {
+    bg: "var(--amber-bg)",
+    border: "var(--amber-border)",
+    text: "var(--amber)",
   },
 };
 

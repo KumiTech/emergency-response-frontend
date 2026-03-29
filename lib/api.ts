@@ -10,7 +10,9 @@ export type Role =
   | "hospital_admin"
   | "police_admin"
   | "fire_admin"
-  | "ambulance_driver";
+  | "ambulance_driver"
+  | "police_driver"
+  | "fire_driver";
 
 export interface AuthUser {
   user_id: string;
@@ -48,6 +50,7 @@ export interface Responder {
   hospital_id: string | null;
   contact_phone: string;
   region: string;
+  driver_id?: string | null;
   created_at: string;
 }
 
@@ -343,6 +346,10 @@ export async function assignResponder(
 }
 
 // ── Responders ────────────────────────────────
+export async function assignDriverToVehicle(vehicleId: string, driverId: string | null) {
+  return api.patch(`/api/vehicles/${vehicleId}/assign`, { driver_id: driverId });
+}
+
 export async function getResponders() {
   const data = await api.get<never, ApiResponse<Responder[]>>(
     "/api/responders",
