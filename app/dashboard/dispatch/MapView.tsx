@@ -385,7 +385,13 @@ export default function MapView({
             position={pos}
             mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           >
-            <div style={{ transform: "translate(-50%, -50%)", cursor: "pointer", filter: "drop-shadow(0 0 10px rgba(0,0,0,0.5))" }}>
+            <div style={{ 
+              transform: "translate(-50%, -50%)", 
+              cursor: "pointer", 
+              filter: "drop-shadow(0 0 10px rgba(0,0,0,0.5))",
+              transition: "all 2s linear", // Smooth gliding between updates
+              zIndex: 10
+            }}>
               <div
                 style={{
                   fontSize: "24px",

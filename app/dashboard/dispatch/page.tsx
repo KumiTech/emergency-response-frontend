@@ -16,11 +16,13 @@ import {
   getVehicles,
   createIncident,
   updateIncidentStatus,
+  createDispatchSocket,
 } from "@/lib/api";
 import type { Incident, Vehicle } from "@/lib/api";
 
 import dynamic from "next/dynamic";
 import { useTheme } from "@/lib/theme-context";
+import { useAuth } from "@/lib/auth-context";
 
 const LeafletMap = dynamic(() => import("./MapView"), { ssr: false });
 
@@ -614,12 +616,69 @@ export default function DispatchDashboard() {
   }, []);
 
   const { theme } = useTheme();
-
+  const { user } = useAuth();
 
   useEffect(() => {
     getOpenIncidents().then(setIncidents).catch(console.error);
     getVehicles().then(setVehicles).catch(console.error);
   }, []);
+
+  // Real-time Fleet Synchronization
+  useEffect(() => {
+    if (!user?.hospital_id) return;
+
+    let socket: any;
+
+    const initSocket = async () => {
+      // Connect to station room to see all institution vehicles
+      socket = await createDispatchSocket(
+        `station:${user.hospital_id}`, 
+        (data: any) => {
+          setVehicles((prev) => {
+            const exists = prev.find((v) => v.vehicle_id === data.vehicle_id);
+            if (exists) {
+              // Update existing vehicle
+              return prev.map((v) =>
+                v.vehicle_id === data.vehicle_id
+                  ? {
+                      ...v,
+                      current_lat: data.lat,
+                      current_lng: data.lng,
+                      last_seen: data.timestamp || new Date().toISOString(),
+                      status: data.status || v.status
+                    }
+                  : v
+              );
+            } else {
+              // New vehicle appearing in real-time
+              return [
+                ...prev,
+                {
+                  vehicle_id: data.vehicle_id,
+                  current_lat: data.lat,
+                  current_lng: data.lng,
+                  last_seen: data.timestamp || new Date().toISOString(),
+                  plate_number: data.plate_number || "UNIT",
+                  vehicle_type: data.vehicle_type || "ambulance",
+                  status: data.status || "active",
+                  station_id: user.hospital_id || null,
+                  driver_id: null,
+                  created_at: new Date().toISOString()
+                } as Vehicle
+              ];
+            }
+          });
+        },
+        () => {} // No-op for status change listener for now
+      );
+    };
+
+    initSocket();
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, [user?.hospital_id]);
 
   async function handleResolve(id: string) {
     try {
