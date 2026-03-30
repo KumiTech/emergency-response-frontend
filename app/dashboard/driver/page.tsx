@@ -39,6 +39,7 @@ export default function DriverDashboard() {
     lng: number;
     speed: number;
   } | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
   const socketRef = useRef<any>(null);
@@ -49,6 +50,56 @@ export default function DriverDashboard() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Simulation Logic
+  useEffect(() => {
+    if (!isSimulating || !isBroadcasting || !myVehicle) return;
+
+    const interval = setInterval(() => {
+      const activeInc = incidents.find(i => i.incident_id === selectedIncidentId);
+      if (!activeInc || !currentCoords) {
+        // Just drift randomly if no target
+        setCurrentCoords(p => p ? { ...p, lat: p.lat + 0.0001, lng: p.lng + 0.0001 } : { lat: 5.6037, lng: -0.187, speed: 45 });
+        return;
+      }
+
+      const targetLat = Number(activeInc.latitude);
+      const targetLng = Number(activeInc.longitude);
+      const step = 0.0003; // Roughly 30-40 meters per step
+
+      setCurrentCoords(prev => {
+        if (!prev) return { lat: 5.6037, lng: -0.187, speed: 45 };
+        
+        const dLat = targetLat - prev.lat;
+        const dLng = targetLng - prev.lng;
+        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+
+        if (dist < step) return { ...prev, lat: targetLat, lng: targetLng, speed: 0 };
+
+        return {
+          ...prev,
+          lat: prev.lat + (dLat / dist) * step,
+          lng: prev.lng + (dLng / dist) * step,
+          speed: 60
+        };
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isSimulating, isBroadcasting, selectedIncidentId, incidents, myVehicle]);
+
+  // Sync simulated coords to socket
+  useEffect(() => {
+    if (isSimulating && isBroadcasting && currentCoords && socketRef.current) {
+      socketRef.current.emit("driver:location:push", {
+        vehicle_id: myVehicle?.responder_id,
+        incident_id: selectedIncidentId || null,
+        lat: currentCoords.lat,
+        lng: currentCoords.lng,
+        speed_kmh: currentCoords.speed
+      });
+    }
+  }, [currentCoords, isSimulating, isBroadcasting, myVehicle, selectedIncidentId]);
 
   async function fetchData() {
     try {
@@ -90,16 +141,18 @@ export default function DriverDashboard() {
       return;
     }
 
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation is not supported by your browser.");
-      return;
-    }
-
     try {
+      // Use createDriverSocket which uses internal driver: namespace
       const socket = await createDriverSocket();
       socketRef.current = socket;
 
       setIsBroadcasting(true);
+
+      if (isSimulating) {
+        // Simulation is handled by the useEffect timer
+        if (!currentCoords) setCurrentCoords({ lat: 5.6037, lng: -0.187, speed: 0 });
+        return;
+      }
 
       watchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
@@ -243,7 +296,21 @@ export default function DriverDashboard() {
                  </div>
                </div>
 
-               <div style={{ marginBottom: "24px" }}>
+             <div style={{ marginBottom: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg3)", padding: "12px", borderRadius: "12px", border: "1px solid var(--border)" }}>
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text)" }}>Simulation Mode</div>
+                  <div style={{ fontSize: "10px", color: "var(--muted)" }}>Auto-drive toward incident</div>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={isSimulating}
+                  disabled={isBroadcasting}
+                  onChange={(e) => setIsSimulating(e.target.checked)}
+                  style={{ width: "20px", height: "20px", cursor: "pointer" }}
+                />
+             </div>
+
+             <div style={{ marginBottom: "24px" }}>
                   <label style={{ display: "block", fontSize: "11px", color: "var(--muted2)", marginBottom: "8px", letterSpacing: "0.04em" }}>ACTIVE MISSION (OPTIONAL)</label>
                   <select
                     disabled={isBroadcasting}
