@@ -625,14 +625,24 @@ export default function DispatchDashboard() {
 
   // Real-time Fleet Synchronization
   useEffect(() => {
-    if (!user?.hospital_id) return;
+    if (!user) return;
+    
+    // Determine the room based on the user's role and hospital_id
+    let room = "";
+    if (user.role === "system_admin") {
+      room = "station:all"; // Super Admins see everything
+    } else if (user.hospital_id) {
+      room = `station:${user.hospital_id}`; // Institutional Admins see their own fleet
+    }
+
+    if (!room) return;
 
     let socket: any;
 
     const initSocket = async () => {
-      // Connect to station room to see all institution vehicles
+      // Connect to the appropriate room
       socket = await createDispatchSocket(
-        `station:${user.hospital_id}`, 
+        room, 
         (data: any) => {
           setVehicles((prev) => {
             const exists = prev.find((v) => v.vehicle_id === data.vehicle_id);
@@ -678,7 +688,7 @@ export default function DispatchDashboard() {
     return () => {
       if (socket) socket.disconnect();
     };
-  }, [user?.hospital_id]);
+  }, [user?.user_id]);
 
   async function handleResolve(id: string) {
     try {
