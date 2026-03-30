@@ -227,6 +227,15 @@ export default function AdminPage() {
       setFormLoading(false);
     }
   }
+  async function handleLinkDriver(responderId: string, driverId: string | null) {
+    try {
+      await updateResponder(responderId, { driver_id: driverId || null });
+      setSuccess("Crew assignment updated!");
+      fetchHospitals(); // Refresh to see changes
+    } catch (err) {
+      setError("Failed to link driver.");
+    }
+  }
 
   async function handleRegisterInstitution(e: React.FormEvent) {
     e.preventDefault();
@@ -1248,6 +1257,46 @@ export default function AdminPage() {
                                 <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
                                   {r.contact_phone}
                                 </div>
+                              </div>
+                              <div 
+                                style={{ 
+                                  marginTop: "10px", 
+                                  paddingTop: "10px", 
+                                  borderTop: "1px solid var(--border)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "5px"
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <label style={{ fontSize: "10px", color: "var(--muted2)", fontWeight: "600" }}>ASSIGNED CREW</label>
+                                  {r.driver_id && <CheckCircle size={10} color="var(--green)" />}
+                                </div>
+                                <select
+                                  value={r.driver_id || ""}
+                                  onChange={(e) => handleLinkDriver(r.responder_id, e.target.value)}
+                                  style={{
+                                    width: "100%",
+                                    background: "var(--bg2)",
+                                    border: "1px solid var(--border)",
+                                    borderRadius: "6px",
+                                    color: "var(--text)",
+                                    fontSize: "11px",
+                                    padding: "6px 8px",
+                                    outline: "none",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  <option value="">No Driver Assigned</option>
+                                  {users
+                                    .filter(u => u.role.toLowerCase().includes("driver") || u.role.toLowerCase().includes("officer") || u.role.toLowerCase().includes("fighter"))
+                                    .map(u => (
+                                      <option key={u.user_id} value={u.user_id}>
+                                        {u.name} ({u.role.replaceAll("_", " ")})
+                                      </option>
+                                    ))
+                                  }
+                                </select>
                               </div>
                             </div>
                           ))

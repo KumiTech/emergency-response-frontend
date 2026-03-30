@@ -60,14 +60,10 @@ export default function DriverDashboard() {
       // 1. Filter by Institution (Hospital/Station)
       const institutionalVehicles = allResponders.filter(r => r.hospital_id === user?.hospital_id);
       
-      // 2. Find MY vehicle (already bridged to my user_id)
+      // 2. Find MY vehicle (already linked by admin)
       const assigned = institutionalVehicles.find(v => v.driver_id === user?.user_id);
       
-      // 3. Find VACANT vehicles (no driver_id)
-      const vacant = institutionalVehicles.filter(v => !v.driver_id);
-
       setMyVehicle(assigned || null);
-      setAvailableVehicles(vacant);
       setIncidents(allIncidents);
     } catch (err) {
       console.error("Failed to load generic data", err);
@@ -86,32 +82,6 @@ export default function DriverDashboard() {
     };
   }, []);
 
-  async function handleClaimVehicle(vehicle_id: string) {
-    if (!user) return;
-    setFormLoading(true);
-    try {
-      await assignDriverToVehicle(vehicle_id, user.user_id);
-      await fetchData();
-    } catch (err) {
-      setLocationError("Failed to claim vehicle. It might have been taken.");
-    } finally {
-      setFormLoading(false);
-    }
-  }
-
-  async function handleReleaseVehicle() {
-    if (!myVehicle) return;
-    setFormLoading(true);
-    try {
-      stopBroadcasting();
-      await assignDriverToVehicle(myVehicle.responder_id, null);
-      await fetchData();
-    } catch (err) {
-      setLocationError("Failed to release vehicle.");
-    } finally {
-      setFormLoading(false);
-    }
-  }
 
   async function startBroadcasting() {
     setLocationError("");
@@ -241,41 +211,25 @@ export default function DriverDashboard() {
           </div>
         )}
 
-        {/* Vehicle Assignment Logic */}
+        {/* Vehicle Assignment State */}
         {!myVehicle ? (
           <div style={cardStyle}>
-            <h2 style={{ fontSize: "15px", fontWeight: "600", marginBottom: "4px" }}>Link to Vehicle</h2>
-            <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "20px" }}>
-              Select a vacant unit from your institution to begin your shift.
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {availableVehicles.length > 0 ? availableVehicles.map((v) => (
-                <button
-                  key={v.responder_id}
-                  disabled={formLoading}
-                  onClick={() => handleClaimVehicle(v.responder_id)}
-                  style={{
-                    width: "100%", padding: "16px", background: "var(--bg3)", border: "1px solid var(--border)",
-                    borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    cursor: "pointer", transition: "all 0.2s"
-                  }}
-                  className="hover-card"
-                >
-                   <div style={{ textAlign: "left" }}>
-                     <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text)" }}>{v.name}</div>
-                     <div style={{ fontSize: "11px", color: "var(--muted2)" }}>PLATE: {v.contact_phone || "UNKN-001"}</div>
-                   </div>
-                   <ChevronRight size={18} color="var(--muted2)" />
-                </button>
-              )) : (
-                <div style={{ 
-                  textAlign: "center", padding: "30px", border: "1px dashed var(--border)", 
-                  borderRadius: "12px", color: "var(--muted2)", fontSize: "13px"
-                 }}>
-                  No vacant vehicles available at your station.
-                </div>
-              )}
+            <div style={{ textAlign: "center", padding: "40px 20px" }}>
+              <Truck size={48} color="var(--muted2)" style={{ marginBottom: "16px", opacity: 0.3 }} />
+              <h2 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "8px", color: "var(--text)" }}>No Vehicle Assigned</h2>
+              <p style={{ fontSize: "13px", color: "var(--muted)", lineHeight: "1.6" }}>
+                Your institutional admin has not assigned a vehicle to your account yet. 
+                Please contact your supervisor to be linked to a unit.
+              </p>
+              <button 
+                onClick={fetchData}
+                style={{ 
+                  marginTop: "24px", padding: "10px 20px", background: "var(--bg3)", border: "1px solid var(--border)",
+                  borderRadius: "8px", color: "var(--text)", fontSize: "12px", cursor: "pointer"
+                }}
+              >
+                CHECK FOR ASSIGNMENT
+              </button>
             </div>
           </div>
         ) : (
@@ -287,16 +241,6 @@ export default function DriverDashboard() {
                     <h2 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text)" }}>{myVehicle.name}</h2>
                     <div style={{ fontSize: "12px", color: "var(--muted)" }}>Linked as Primary Operator</div>
                  </div>
-                 <button 
-                   onClick={handleReleaseVehicle}
-                   disabled={isBroadcasting || formLoading}
-                   style={{ 
-                     background: "none", border: "none", color: "var(--red)", fontSize: "11px", 
-                     fontWeight: "600", cursor: "pointer", opacity: isBroadcasting ? 0.4 : 1 
-                   }}
-                 >
-                   RELEASE VEHICLE
-                 </button>
                </div>
 
                <div style={{ marginBottom: "24px" }}>
