@@ -91,6 +91,7 @@ interface Vehicle {
   status: string;
   current_lat: number | null;
   current_lng: number | null;
+  last_seen: string | null;
 }
 
 interface MapViewProps {
@@ -191,6 +192,15 @@ export default function MapView({
   theme,
   onSelectIncident,
 }: MapViewProps) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 10000); // Trigger re-render every 10s to sync "last seen" filter
+    return () => clearInterval(interval);
+  }, []);
+
   const { isLoaded } = useJsApiLoader({ id: "google-map-script", googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "" });
   const { user } = useAuth();
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -359,10 +369,16 @@ export default function MapView({
           </OverlayView>
         ))}
 
-      {vehicles.map((v) => {
-        const pos = activeGPS[v.vehicle_id] || (v.current_lat && v.current_lng ? { lat: Number(v.current_lat), lng: Number(v.current_lng) } : null);
-        if (!pos) return null;
-        const emoji = VEHICLE_ICONS[v.vehicle_type] || "🚑";
+      {vehicles
+        .filter((v) => {
+          if (!v.current_lat || !v.current_lng || !v.last_seen) return false;
+          const lastSeenTime = new Date(v.last_seen).getTime();
+          const now = Date.now();
+          return now - lastSeenTime < 60000; // Only show if seen in last 60s
+        })
+        .map((v) => {
+          const pos = activeGPS[v.vehicle_id] || { lat: Number(v.current_lat), lng: Number(v.current_lng) };
+          const emoji = VEHICLE_ICONS[v.vehicle_type] || "🚑";
         return (
           <OverlayView
             key={v.vehicle_id}

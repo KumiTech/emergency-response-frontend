@@ -61,6 +61,7 @@ export interface Hospital {
   longitude: number;
   total_beds: number;
   available_beds: number;
+  region?: string;
   created_at: string;
   type?: "hospital" | "police_station" | "fire_station";
   responders?: Responder[];

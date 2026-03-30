@@ -14,8 +14,10 @@ import {
   Truck,
   Edit2,
   Flame,
+  Plus,
 } from "lucide-react";
-import { api, registerUser, getHospitalsFull, registerResponder, updateUser, createHospital } from "@/lib/api";
+import { api, registerUser, getHospitalsFull, registerResponder, updateResponder, updateUser, createHospital } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 import type { Hospital } from "@/lib/api";
 
@@ -111,6 +113,7 @@ interface User {
 }
 
 export default function AdminPage() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
