@@ -374,7 +374,7 @@ export default function MapView({
           if (!v.current_lat || !v.current_lng || !v.last_seen) return false;
           const lastSeenTime = new Date(v.last_seen).getTime();
           const now = Date.now();
-          return now - lastSeenTime < 60000; // Only show if seen in last 60s
+          return now - lastSeenTime < 120000; // Increased to 120s for better visibility
         })
         .map((v) => {
           const pos = activeGPS[v.vehicle_id] || { lat: Number(v.current_lat), lng: Number(v.current_lng) };
