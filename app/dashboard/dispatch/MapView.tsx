@@ -100,6 +100,8 @@ interface MapViewProps {
   selectedId: string | null;
   theme: string;
   onSelectIncident: (id: string) => void;
+  onMapClick?: (lat: number, lng: number) => void;
+  isPickingMode?: boolean;
 }
 
 function IncidentMarker({
@@ -191,6 +193,8 @@ export default function MapView({
   selectedId,
   theme,
   onSelectIncident,
+  onMapClick,
+  isPickingMode,
 }: MapViewProps) {
   const [tick, setTick] = useState(0);
 
@@ -336,12 +340,23 @@ export default function MapView({
     );
   }
 
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (isPickingMode && onMapClick && e.latLng) {
+      onMapClick(e.latLng.lat(), e.latLng.lng());
+    }
+  };
+
   return (
     <GoogleMap
-      mapContainerStyle={{ width: "100%", height: "100%" }}
+      mapContainerStyle={{ 
+        width: "100%", 
+        height: "100%",
+        cursor: isPickingMode ? "crosshair" : "default"
+      }}
       center={{ lat: 5.6037, lng: -0.187 }}
       zoom={12}
       onLoad={onLoad}
+      onClick={handleMapClick}
       options={{
         styles: theme === "dark" ? DARK_STYLE : [],
         disableDefaultUI: false,

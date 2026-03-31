@@ -88,9 +88,13 @@ function timeAgo(iso: string) {
 function NewIncidentModal({
   onClose,
   onCreated,
+  onStartPicking,
+  pickedCoords,
 }: {
   onClose: () => void;
   onCreated: (i: Incident) => void;
+  onStartPicking?: () => void;
+  pickedCoords?: { lat: number; lng: number } | null;
 }) {
   const [form, setForm] = useState({
     citizen_name: "",
@@ -99,6 +103,17 @@ function NewIncidentModal({
     longitude: "",
     notes: "",
   });
+
+  // Sync picked coordinates from map
+  useEffect(() => {
+    if (pickedCoords) {
+      setForm((p) => ({
+        ...p,
+        latitude: pickedCoords.lat.toFixed(6),
+        longitude: pickedCoords.lng.toFixed(6),
+      }));
+    }
+  }, [pickedCoords]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -272,7 +287,7 @@ function NewIncidentModal({
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gap: "10px",
-              marginBottom: "14px",
+              marginBottom: "6px",
             }}
           >
             {[
@@ -305,6 +320,33 @@ function NewIncidentModal({
               </div>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={onStartPicking}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              padding: "8px",
+              background: "var(--bg3)",
+              border: "1px dashed var(--border)",
+              borderRadius: "7px",
+              color: "var(--blue)",
+              fontSize: "11px",
+              fontWeight: "500",
+              cursor: "pointer",
+              marginBottom: "14px",
+              transition: "all 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.background = "var(--bg4)")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "var(--bg3)")}
+          >
+            <MapPin size={12} />
+            Pick location on map
+          </button>
 
           <div style={{ marginBottom: "20px" }}>
             <label
@@ -605,7 +647,9 @@ export default function DispatchDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selected, setSelected] = useState<Incident | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [isMobile, setIsMobile] = useState(false); // <--- ADD THIS
+  const [isPickingLocation, setIsPickingLocation] = useState(false);
+  const [pickedCoords, setPickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     // --- ADD THIS BLOCK ---
@@ -948,17 +992,66 @@ export default function DispatchDashboard() {
         >
           <LeafletMap
             incidents={incidents}
-
-
-
-          vehicles={vehicles}
-          selectedId={selected?.incident_id || null}
-          theme={theme}
-          onSelectIncident={(id) => {
-            const inc = incidents.find((i) => i.incident_id === id);
-            setSelected(inc || null);
-          }}
-        /></div>
+            vehicles={vehicles}
+            selectedId={selected?.incident_id || null}
+            theme={theme}
+            onSelectIncident={(id) => {
+              const inc = incidents.find((i) => i.incident_id === id);
+              setSelected(inc || null);
+            }}
+            isPickingMode={isPickingLocation}
+            onMapClick={(lat, lng) => {
+              setPickedCoords({ lat, lng });
+              setIsPickingLocation(false);
+              setShowModal(true); // Re-show modal after picking
+            }}
+          />
+          {isPickingLocation && (
+            <div
+              style={{
+                position: "absolute",
+                top: "20px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                background: "var(--bg2)",
+                border: "1px solid var(--blue)",
+                padding: "8px 16px",
+                borderRadius: "20px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                zIndex: 50,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+              }}
+            >
+              <div
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: "var(--blue)",
+                  animation: "pulse 1.5s infinite",
+                }}
+              />
+              <span style={{ fontSize: "12px", fontWeight: "500", color: "var(--text)" }}>
+                Click on the map to select location
+              </span>
+              <button
+                onClick={() => setIsPickingLocation(false)}
+                style={{
+                  marginLeft: "8px",
+                  background: "none",
+                  border: "none",
+                  color: "var(--muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
 
 
         {/* RIGHT: Detail panel */}
@@ -1297,6 +1390,11 @@ export default function DispatchDashboard() {
         <NewIncidentModal
           onClose={() => setShowModal(false)}
           onCreated={(inc) => setIncidents((prev) => [inc, ...prev])}
+          onStartPicking={() => {
+            setShowModal(false);
+            setIsPickingLocation(true);
+          }}
+          pickedCoords={pickedCoords}
         />
       )}
     </div>
